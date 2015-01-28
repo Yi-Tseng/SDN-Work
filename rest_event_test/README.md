@@ -30,7 +30,7 @@ Start restful server
 > $ python manager runserver 0.0.0.0:8000
 
 Send request to RESTful service
-> $ curl lab.takeshi.tw:8000/hello
+> $ curl localhost:8000/hello
 
 
 
