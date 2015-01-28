@@ -13,6 +13,7 @@ class SimpleEventApp(app_manager.RyuApp):
     def __init__(self, *args, **kwargs):
         super(SimpleEventApp, self).__init__(*args, **kwargs)
         self.evlib = kwargs['evlib']
+        self.evlib.config = {}
         self.evlib.start_sock_server()
 
     @set_ev_cls(simple_event_lib.SimpleEvent, MAIN_DISPATCHER)

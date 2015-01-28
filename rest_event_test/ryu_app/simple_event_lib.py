@@ -3,7 +3,6 @@ from ryu.lib import hub
 from ryu.base import app_manager
 from ryu.controller import event
 import json
-import pdb
 
 SOCKFILE = '/tmp/hello_sock'
 
@@ -16,7 +15,7 @@ class SimpleEvent(event.EventBase):
 class SimpleEventLib(app_manager.RyuApp):
     def __init__(self):
         super(SimpleEventLib, self).__init__()
-        self.name = 'simple_ev_lib'
+        self.config = {}
         self.sock = None
 
     def recv_loop(self):
@@ -28,7 +27,6 @@ class SimpleEventLib(app_manager.RyuApp):
             print 'get data:', data
             msg = json.loads(data)
             print 'msg is:', msg
-            pdb.set_trace()
             if msg:
                 self.send_event_to_observers(SimpleEvent(msg))
                 print 'sent to ovservers'
