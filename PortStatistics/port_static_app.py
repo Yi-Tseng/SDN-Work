@@ -82,7 +82,7 @@ class PortStaticApp(app_manager.RyuApp):
         dpid = datapath.id
         self.mac_to_port.setdefault(dpid, {})
 
-        self.logger.info("packet in %s %s %s %s", dpid, src, dst, in_port)
+        # self.logger.info("packet in %s %s %s %s", dpid, src, dst, in_port)
 
         # learn a mac address to avoid FLOOD next time.
         self.mac_to_port[dpid][src] = in_port
@@ -126,25 +126,25 @@ class PortStaticApp(app_manager.RyuApp):
         print "Handling port stats event"
 
         for stat in ev.msg.body:
-            dpid = ev.dp.id
+            dpid = ev.msg.datapath.id
             port_no = stat.port_no
-            name = "%X-%d" % (dpid, port_no)
-            current_time_milli = time.time() * 1000
+            name = "%X-%d" % (dpid, port_no, )
+            current_time = time.time()
 
-            self.port_infos.setdefault(name, {"last_update":current_time_milli, "rx_bytes": 0, "tx_bytes": 0, "rx_band": 0, "tx_band": 0})
+            self.port_infos.setdefault(name, {"last_update":current_time, "rx_bytes": 0, "tx_bytes": 0, "rx_band": 0, "tx_band": 0})
             port_info = self.port_infos[name]
 
-            if port_info["last_update"] == current_time_milli:
+            if port_info["last_update"] == current_time:
                 port_info["rx_bytes"] = stat.rx_bytes
                 port_info["tx_bytes"] = stat.tx_bytes
 
             else:
-                delta_time = current_time_milli - port_info["last_update"]
+                delta_time = current_time - port_info["last_update"]
                 port_info["rx_band"] = (stat.rx_bytes - port_info["rx_bytes"]) / delta_time
                 port_info["tx_band"] = (stat.tx_bytes - port_info["tx_bytes"]) / delta_time
                 port_info["rx_bytes"] = stat.rx_bytes
                 port_info["tx_bytes"] = stat.tx_bytes
-                port_info["last_update"] = current_time_milli
+                port_info["last_update"] = current_time
 
         print "Bandwidth informations"
 

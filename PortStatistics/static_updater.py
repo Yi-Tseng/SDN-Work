@@ -13,7 +13,9 @@ class StaticUpdater(Thread):
 
     def run(self):
 
-        sleep(10)
+        print "Starting updater"
+        sleep(5)
+        print "Started"
 
         while True:
 
@@ -24,6 +26,7 @@ class StaticUpdater(Thread):
                     parser = dp.ofproto_parser
                     ofproto = dp.ofproto
                     msg = parser.OFPPortStatsRequest(dp, 0, ofproto.OFPP_ANY)
+                    "Msg sent"
                     dp.send_msg(msg)
 
             sleep(1)
