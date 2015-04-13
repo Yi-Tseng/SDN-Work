@@ -8,12 +8,12 @@ from ryu.lib.packet import arp
 from ryu.ofproto import ofproto_v1_3
 
 
-class L2Switch(app_manager.RyuApp):
+class GetSwitches(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
 
     switches = []
     def __init__(self, *args, **kwargs):
-        super(L2Switch, self).__init__(*args, **kwargs)
+        super(GetSwitches, self).__init__(*args, **kwargs)
 
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def packet_in_handler(self, ev):
