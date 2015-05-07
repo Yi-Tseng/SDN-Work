@@ -16,7 +16,6 @@ from mininet.log import setLogLevel, info
 from mininet.link import Link, Intf, TCLink
 from mininet.topo import Topo
 from mininet.util import dumpNodeConnections
-from mininet.node import RYU
 
 logging.basicConfig(level=logging.DEBUG)
 LOG = logging.getLogger('FatTreeTopo')
