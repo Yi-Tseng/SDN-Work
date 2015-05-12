@@ -5,9 +5,12 @@ Author : Yi Tseng
 '''
 import logging
 import pdb
+import os
+from functools import partial
 
 from mininet.net import Mininet
 from mininet.node import Controller, RemoteController
+from mininet.node import OVSSwitch
 from mininet.cli import CLI
 from mininet.log import setLogLevel, info
 from mininet.link import Link, Intf, TCLink
@@ -49,7 +52,7 @@ class FatTreeTopo(Topo):
         Create core switches
         '''
         for i in range(0, self.num_cores):
-            switch_name = 'C%d' % (i, )
+            switch_name = 's1%d' % (i, )
             self.core_switches.append(self.addSwitch(switch_name))
 
     def create_pods(self):
@@ -61,18 +64,18 @@ class FatTreeTopo(Topo):
 
             # create aggregation layer
             for ai in range(0, self.num_aggres_per_pod):
-                switch_name = 'P%dA%d' % (pi, ai, )
+                switch_name = 's2%d%d' % (pi, ai, )
                 self.pods[pi]['aggr'].append(self.addSwitch(switch_name))
 
             # create edge layer
             for ei in range(0, self.num_edges_per_pod):
-                switch_name = 'P%dE%d' % (pi, ei, )
+                switch_name = 's3%d%d' % (pi, ei, )
                 edge_switch = self.addSwitch(switch_name)
                 self.pods[pi]['edge'].append(edge_switch)
 
                 # create hosts
                 for hi in range(0, self.num_host_per_edge):
-                    host_name = '%sH%d' % (switch_name, hi, )
+                    host_name = 'h%d%d%d' % (pi, ei, hi, )
                     host = self.addHost(host_name)
                     self.addLink(edge_switch, host)
 
@@ -118,11 +121,6 @@ class FatTreeTopo(Topo):
 
     def set_protocols_to_all_switch(self, protocols):
         pdb.set_trace()
-        def set_protocol(switch):
-            protocols_str = ','.join(protocols)
-            command = 'ovs-vsctl set Bridge %s protocols=%s' % (switch, protocols_str)
-            switch.cmd(command.split(' '))
-
         for core_switch in self.core_switches:
             set_protocol(core_switch)
 
@@ -140,11 +138,50 @@ class FatTreeTopo(Topo):
         self.link_core_to_pods()
         # self.set_protocols_to_all_switch(['OpenFlow13'])
 
+def set_protocol(switch, protocols):
+    protocols_str = ','.join(protocols)
+    command = 'ovs-vsctl set Bridge %s protocols=%s' % (switch, protocols_str)
+    switch.cmd(command.split(' '))
+
+def set_stp(switch):
+    cmd = "ovs-vsctl set Bridge %s stp_enable=true" % (switch.name, )
+    LOG.info(cmd)
+    os.system(cmd)
+
 if __name__ == '__main__':
-    fat_tree = FatTreeTopo(4, ac_pkt_lost=0)
+    fat_tree = FatTreeTopo(4)
     fat_tree.init_fat_tree()
     net = Mininet(topo=fat_tree, link=TCLink, controller=None)
-    net.addController('controller', controller=RemoteController, ip='127.0.0.1', port=6633)
+    net.addController('Controller', controller=RemoteController, ip='127.0.0.1', port=6653)
     net.start()
+
+    '''
+    switches = [net.get(sw) for sw in fat_tree.switches()]
+    for sw in switches:
+        set_stp(sw)
+    '''
+    dumpNodeConnections(net.hosts)
+    LOG.info('Ping all')
+    net.pingAll()
+
+    # iperf test
+    LOG.info('iperf test')
+    client_host = net.get('h000') # form pod 0, edge 0, host 0
+    server_host1 = net.get('h011') # from pod 0, edge 1, host 1
+    server_host2 = net.get('h301') # from pod 3, edge 0, host 1
+
+    # start iperf server 1
+    server_host1.popen('iperf -s -u -i 1 > iperf_server_1_report.txt', shell=True)
+
+    # start iperf server 2
+    server_host2.popen('iperf -s -u -i 1 > iperf_server_2_report.txt', shell=True)
+
+    # start iperf client to server 1
+    client_host.cmdPrint('iperf -c ' + server_host1.IP() + ' -u -t 10 -i 1 -b 100m')
+
+    # start iperf client to server 1
+    client_host.cmdPrint('iperf -c ' + server_host2.IP() + ' -u -t 10 -i 1 -b 100m')
+
+    LOG.info('end iperf test')
     CLI(net)
     net.stop()
