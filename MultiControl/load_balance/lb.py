@@ -14,12 +14,11 @@ LOG = logging.getLogger('load_balance_app')
 
 class LoadBalanceApp(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
-
+    _CONTEXTS = {'load_balancer': LoadBalancer}
 
     def __init__(self, *args, **kwargs):
         super(LoadBalanceApp, self).__init__(*args, **kwargs)
-        self.load_balancer = LoadBalancer(
-            server_addr='127.0.0.1', server_port=10807)
+        self.load_balancer = kwargs['load_balancer']
         switches = api.get_all_switch(self)
 
         # change to slave first
@@ -64,3 +63,5 @@ class LoadBalanceApp(app_manager.RyuApp):
             gen_id = random.randint(0, 10000)
             msg = ofp_parser.OFPRoleRequest(dp, role, gen_id)
             dp.send_msg(msg)
+
+app_manager.require_app('liblb.LoadBalancer')

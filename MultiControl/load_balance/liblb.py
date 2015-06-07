@@ -33,8 +33,12 @@ class LoadBalancer(app_manager.RyuApp):
 
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, server_addr='127.0.0.1', server_port=10807, *args, **kwargs):
         super(LoadBalancer, self).__init__(*args, **kwargs)
+
+        
+        
+
         self.server_addr = kwargs['server_addr']
         self.server_port = kwargs['server_port']
         self.global_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
