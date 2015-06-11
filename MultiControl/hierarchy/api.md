@@ -31,12 +31,14 @@ Global to local
 
 - Route result
 
-`
+``
 {
 	cmd: "route_result",
-	port: {dpid: 1, port: 1}
+	dpid: 1,
+    port: 1,
+    host: '00:00:00:00:00:01'
 }
-`
+``
 
 
 Local to global
@@ -46,7 +48,7 @@ Local to global
 ``
 {
     cmd: "response_host",
-    host: { ip:"10.0.0.1", mac:"00:00:00:00:00:01"}
+    host: "00:00:00:00:00:01"
 }
 ``
 
@@ -55,7 +57,7 @@ Local to global
 ``
 {
     cmd: "get_route",
-    dst:{ ip:"10.0.0.3", mac:"00:00:00:00:00:03"}
+    dst:"00:00:00:00:00:03"
 }
 ``
 - Add cross domain link
