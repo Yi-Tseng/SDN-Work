@@ -46,3 +46,19 @@ class LocalControllerApp(app_manager.RyuApp):
             pass
 
         # non-LLDP
+
+    @set_ev_cls(local_lib.EventRouteResult, MAIN_DISPATCHER)
+    def route_result_handler(self, ev):
+        pass
+
+    @set_ev_cls(local_lib.EventAskDpid, MAIN_DISPATCHER)
+    def ask_dpid_handler(self, ev):
+        pass
+
+    @set_ev_cls(local_lib.EventAskHost, MAIN_DISPATCHER)
+    def ask_host_handler(self, ev):
+        pass
+
+    @set_ev_cls(local_lib.EventHostDiscovery, MAIN_DISPATCHER)
+    def host_discovery_handler(self, ev):
+        pass
