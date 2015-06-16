@@ -75,6 +75,10 @@ class LocalControllerLib(app_manager.RyuApp):
             elif msg.datapath.ofproto.OFP_VERSION >= ofproto_v1_2.OFP_VERSION:
                 port = msg.match['in_port']
 
+            if port >= 1024:
+                # hack: ignore some fault port
+                return
+
             pkt = packet.Packet(msg.data)
             eth = pkt.get_protocols(ethernet.ethernet)[0]
             mac = eth.src
