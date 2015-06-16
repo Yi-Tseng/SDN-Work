@@ -14,6 +14,7 @@ import local_lib
 
 
 LOG = logging.getLogger('local_app')
+OFPPC_NO_FLOOD = 1 << 4
 
 class LocalControllerApp(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
@@ -21,9 +22,9 @@ class LocalControllerApp(app_manager.RyuApp):
 
 
     def __init__(self, *args, **kwargs):
+        super(LocalControllerApp, self).__init__(*args, **kwargs)
         self.local_lib = kwargs['local_lib']
-        super(LoadBalanceApp, self).__init__(*args, **kwargs)
-
+        self.global_port = {}
     
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def packet_in_handler(self, ev):
@@ -31,13 +32,22 @@ class LocalControllerApp(app_manager.RyuApp):
         msg = ev.msg
         datapath = msg.datapath
         try:
+            # src: from other switch
             src_dpid, src_port_no = LLDPPacket.lldp_parse(msg.data)
+            # dst: this switch
             dst_dpid, dst_port_no = datapath.dpid, msg.match['in_port']
-            switch = api.get_switch(src_dpid)
+            switch = api.get_switch(src_dpid)[0]
 
-            if switch == None:
-                # send cross domain link add
-                self.local_lib.send_cross_domain_link(dst_dpid, dst_port_no, src_dpid, src_port_no)
+            # not this topology switch
+            if switch != None:
+                return
+
+            # send cross domain link add
+            self.local_lib.send_cross_domain_link(dst_dpid, dst_port_no, src_dpid, src_port_no)
+
+            # add global port
+            self.global_port[dst_dpid].set_default([])
+            self.global_port[dst_dpid].append(dst_port_no)
 
             return
         except LLDPPacket.LLDPUnknownFormat as e:
