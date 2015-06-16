@@ -7,6 +7,7 @@ from ryu.topology import event
 from ryu.topology import api
 from ryu.topology.switches import LLDPPacket
 from ryu.lib.packet import packet, ethernet, lldp
+from ryu.controller import ofp_event
 from ryu.controller.handler import set_ev_cls
 from ryu.controller.handler import MAIN_DISPATCHER
 
@@ -18,12 +19,12 @@ OFPPC_NO_FLOOD = 1 << 4
 
 class LocalControllerApp(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
-    _CONTEXTS = {'local_lib': local_lib.LocalControllerLib}
+    
 
 
     def __init__(self, *args, **kwargs):
         super(LocalControllerApp, self).__init__(*args, **kwargs)
-        self.local_lib = kwargs['local_lib']
+        self.local_lib = local_lib.LocalControllerLib('127.0.0.1', 10807)
         self.local_lib.start_serve()
         self.global_port = {}
         self.route_list = []
@@ -178,4 +179,7 @@ class LocalControllerApp(app_manager.RyuApp):
 
     @set_ev_cls(local_lib.EventHostDiscovery, MAIN_DISPATCHER)
     def host_discovery_handler(self, ev):
-        pass
+        print 'Discover host %s on %s, port %d' % (ev.host, ev.dpid, ev.port)
+
+
+
