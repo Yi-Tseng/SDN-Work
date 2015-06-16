@@ -26,7 +26,7 @@ class GlobalController(object):
             hub.sleep(1)
 
     def _connection_factory(self, socket, address):
-        print('connected socket:%s address:%s', socket, address)
+        print 'connected socket:%s address:%s' % (socket, address)
 
         with contextlib.closing(GlobalAgent(socket, address)) as agent:
             agent.global_ctrn = self
