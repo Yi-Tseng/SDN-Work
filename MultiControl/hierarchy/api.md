@@ -40,6 +40,8 @@ Global to local
 }
 ``
 
+P.S. if dpid = -1, global route query failed
+
 
 Local to global
 ----
