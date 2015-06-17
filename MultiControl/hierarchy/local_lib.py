@@ -13,6 +13,7 @@ from ryu.ofproto import ofproto_v1_0, ofproto_v1_2, ofproto_v1_3
 from ryu.lib import hub
 from ryu.topology.switches import LLDPPacket
 
+LOG = logging.getLogger('local_lib')
 
 class EventRouteResult(event.EventBase):
 
@@ -84,7 +85,7 @@ class LocalControllerLib(app_manager.RyuApp):
             mac = eth.src
 
             if mac not in self.hosts and port != -1:
-                self.hosts[mac] = (dpid, port)
+                self.hosts[mac] = (int(dpid), int(port))
                 ev = EventHostDiscovery(dpid, port, mac)
                 self.send_event_to_observers(ev)
 
@@ -92,9 +93,9 @@ class LocalControllerLib(app_manager.RyuApp):
 
         try:
             self.socket.connect((self.server_addr, self.server_port))
-            t1 = hub.spawn(self._serve_loop)
-            t2 = hub.spawn(self._send_loop)
-            hub.joinall([t1, t2])
+            hub.spawn(self._serve_loop)
+            hub.spawn(self._send_loop)
+            # hub.joinall([t1, t2])
 
         except Exception, ex:
             raise ex
@@ -123,7 +124,12 @@ class LocalControllerLib(app_manager.RyuApp):
         
         while True:
             buf = self.socket.recv(128)
-            msg = json.loads(buf)
+
+            try:
+                msg = json.loads(buf)
+            except ValueError:
+                continue
+
             ev = None
 
             if msg['cmd'] == 'set_agent_id':
