@@ -3,10 +3,9 @@ import logging
 import networkx as nx
 from ryu.base import app_manager
 from ryu.ofproto import ofproto_v1_3
-from ryu.topology import event
 from ryu.topology import api
 from ryu.topology.switches import LLDPPacket
-from ryu.lib.packet import packet, ethernet, lldp
+from ryu.lib.packet import packet, ethernet
 from ryu.controller import ofp_event
 from ryu.controller.handler import set_ev_cls
 from ryu.controller.handler import MAIN_DISPATCHER
@@ -39,18 +38,24 @@ class LocalControllerApp(app_manager.RyuApp):
             # src: from other switch
             src_dpid, src_port_no = LLDPPacket.lldp_parse(msg.data)
             # dst: this switch
-            dst_dpid, dst_port_no = datapath.dpid, msg.match['in_port']
-            switch = api.get_switch(src_dpid)
+            dst_dpid, dst_port_no = datapath.id, msg.match['in_port']
+
+            if int(src_dpid) > 1024 or int(dst_dpid) > 1024:
+                # hack: ignote illegal switch
+                return
+
+            switch = api.get_switch(self, str(src_dpid))
 
             # not this topology switch
             if len(switch) != 0:
                 return
 
             # send cross domain link add
+            LOG.info('Sending cross doamin link from %s:%d to %s:%d', src_dpid, src_port_no, dst_dpid, dst_port_no)
             self.local_lib.send_cross_domain_link(dst_dpid, dst_port_no, src_dpid, src_port_no)
 
             # add global port
-            self.global_port[dst_dpid].set_default([])
+            self.global_port.setdefault(dst_dpid, [])
             self.global_port[dst_dpid].append(dst_port_no)
 
             return
@@ -80,7 +85,8 @@ class LocalControllerApp(app_manager.RyuApp):
         # 2. Not in same switch
         host = self.local_lib.hosts[dst]
 
-        
+        # host[0] -> dpid
+        # host[1] -> port
         if host[0] == dpid:
             # same switch
             out_port = host[1]
@@ -89,24 +95,8 @@ class LocalControllerApp(app_manager.RyuApp):
         else:
             # not same switch
             # calculate path
-            g = nx.Graph()
-            links = api.get_all_link(self)
+            self._packet_out_to(msg, host[0], host[1])
 
-            for link in links:
-                src = int(link.src.dpid)
-                dst = int(link.dst.dpid)
-                g.add_edge(src, dst)
-            src = int(dpid)
-            dst = int(host[0])
-            path = None
-
-            if nx.has_path(g, src, dst):
-                path = nx.shortest_path(g, src, dst)
-
-            if path == None:
-                return
-            out_port = self._get_out_port(src, dst)
-            self._packet_out(msg, out_port)
 
     def _get_out_port(self, src, dst):
         '''
@@ -157,14 +147,68 @@ class LocalControllerApp(app_manager.RyuApp):
                                   data=data)
         datapath.send_msg(out)
 
+    def _packet_out_to(self, msg, dst_dpid, dst_out_port):
+        dp = msg.datapath
+        src_dpid = int(dp.id)
+
+        # same dp
+        if src_dpid == dst_dpid:
+            self._packet_out(msg, dst_out_port)
+
+        else:
+            g = nx.Graph()
+            links = api.get_all_link(self)
+
+            for link in links:
+                src = int(link.src.dpid)
+                dst = int(link.dst.dpid)
+                g.add_edge(src, dst)
+            src = int(src_dpid)
+            dst = int(dst_dpid)
+            path = None
+
+            if nx.has_path(g, src, dst):
+                path = nx.shortest_path(g, src, dst)
+
+            if path == None:
+                return
+            out_port = self._get_out_port(path[0], path[1])
+            self._packet_out(msg, out_port)
+
     @set_ev_cls(local_lib.EventRouteResult, MAIN_DISPATCHER)
     def route_result_handler(self, ev):
-        pass
+        dpid = ev.dpid
+        port = ev.port
+        host = ev.host
+        remove_list = []
+        if dpid == -1:
+            # global routing failed
+            # do broad cast
+            
+            for route_req in self.route_list:
+
+                if route_req[0] != host:
+                    continue
+                self._flood_packet(route_req[1])
+                remove_list.append(route_req)
+
+        else:
+            # global routing not failed
+            pass
+
+        for remove_item in remove_list:
+
+            try:
+                index = self.route_list.index(remove_item)
+                del self.route_list[index]
+
+            except ValueError:
+                pass
 
     @set_ev_cls(local_lib.EventAskDpid, MAIN_DISPATCHER)
     def ask_dpid_handler(self, ev):
         dpid = ev.dpid
-        switch = api.get_switch(str(dpid))
+        switch = api.get_switch(self, str(dpid))
 
         if len(switch) != 0:
             self.local_lib.response_dpid(dpid)
@@ -179,7 +223,8 @@ class LocalControllerApp(app_manager.RyuApp):
 
     @set_ev_cls(local_lib.EventHostDiscovery, MAIN_DISPATCHER)
     def host_discovery_handler(self, ev):
-        print 'Discover host %s on %s, port %d' % (ev.host, ev.dpid, ev.port)
+        LOG.info('Discover host %s on %s, port %d', ev.host, ev.dpid, ev.port)
+        self.local_lib.response_host(ev.host)
 
 
 
