@@ -8,6 +8,7 @@ from ryu.lib import hub
 from ryu.lib.hub import StreamServer
 
 LOG = logging.getLogger('load_balance_global')
+LOG.setLevel(logging.DEBUG)
 MAX_AGENTS = 1024
 
 
@@ -18,7 +19,7 @@ class GlobalController(object):
         self.agents = {}
         self.server = StreamServer(('0.0.0.0', 10807), self._connection_factory)
         self.cross_domain_links = [] # ex: [{src: {dpid: 4, port: 3}, dst: {dpid: 1, port: 1} }]
-        self.host_req_list = [] # host mac, agent
+        self.hosts = {} # host -> domain number
 
     def _serve_loop(self):
         # calculate load for each agent and send role to them.
@@ -80,13 +81,50 @@ class GlobalController(object):
             agent: source domain(lc) agent
         '''
 
-        # ask host first
-        self.host_req_list.append({'host': dst_host, 'agent': agent})
+        if dst_host not in self.hosts:
+            msg = json.dumps({
+                'cmd': 'route_result',
+                'dpid': -1,
+                'port': -1,
+                'host': dst_host
+                })
+            agent.send(msg)
+
+        
+        # get source and destination
+        # from a? to a? (cross doamin)
+        dst_agent = self.hosts[dst_host]
+        src_agent_id = agent.agent_id
+        src = 'a%d' % (src_agent_id, )
+        dst = 'a%d' % (dst_agent.agent_id, )
+
+        # generate link between agents
+        links = self._get_agent_links()
+
+        # generate graph
+        g = nx.Graph()
+        g.add_edges_from(links)
+
+        path = []
+        if nx.has_path(g, src, dst):
+            path = nx.shortest_path(g, src, dst)
+
+        # we only need first two element and get output port
+        glink = self._get_agent_link(path[0], path[1])
+
+        # find output dpid and port
+        output_dpid = glink['src']['dpid']
+        output_port = glink['src']['port']
+
+        # send route result
         msg = json.dumps({
-            'cmd': 'ask_host',
-            'host': dst_host,
+            'cmd': "route_result",
+            'dpid': output_dpid,
+            'port': output_port,
+            'host': dst_host
         })
-        self.broad_cast(msg)
+        agent.send(msg)
+
 
     def _get_agent_link(self, src, dst):
         # convert a? to ?
@@ -119,47 +157,14 @@ class GlobalController(object):
 
         return links
 
-    def response_host(self, host, agent_id):
+
+    def response_host(self, host, agent):
         '''
             actually, it use for get route
         '''
         
-        for req in self.host_req_list:
+        self.hosts[host] = agent
 
-            if req['host'] == host:
-                # get source and destination
-                # from a? to a? (cross doamin)
-                agent = req['agent']
-                src_agent_id = agent.agent_id
-                src = 'a%d' % (src_agent_id, )
-                dst = 'a%d' % (agent_id, )
-
-                # generate link between agents
-                links = self._get_agent_links()
-
-                # generate graph
-                g = nx.Graph()
-                g.add_edges_from(links)
-
-                path = []
-                if nx.has_path(g, src, dst):
-                    path = nx.shortest_path(g, src, dst)
-
-                # we only need first two element and get output port
-                glink = self._get_agent_link(path[0], path[1])
-
-                # find output dpid and port
-                output_dpid = glink['src']['dpid']
-                output_port = glink['src']['port']
-
-                # send route result
-                msg = json.dumps({
-                    'cmd': "route_result",
-                    'dpid': output_dpid,
-                    'port': output_port,
-                    'host': host
-                })
-                agent.send(msg)
 
     def response_dpid(self, dpid, agent_id):
 
@@ -222,13 +227,15 @@ class GlobalAgent(object):
             msg = json.loads(buf)
 
             if msg['cmd'] == 'add_cross_domain_link':
+                LOG.debug('receive cross domain link message')
                 src = msg['src']
                 dst = msg['dst']
+                LOG.debug('src: %d, dst: %d', src, dst)
                 self.global_ctrn.add_cross_domain_link(src, dst, self.agent_id)
 
             elif msg['cmd'] == 'reponse_host':
                 host = msg['host']
-                self.global_ctrn.response_host(host, self.agent_id)
+                self.global_ctrn.response_host(host, self)
 
             elif msg['cmd'] == 'get_route':
                 dst_host = msg['dst']
