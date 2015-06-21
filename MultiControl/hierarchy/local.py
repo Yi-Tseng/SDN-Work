@@ -186,12 +186,27 @@ class LocalControllerApp(app_manager.RyuApp):
             out_port = self._get_out_port(path[0], path[1])
             self._packet_out(msg, out_port)
 
+    def _add_flow(self, datapath, priority, match, actions, buffer_id=None):
+        ofproto = datapath.ofproto
+        parser = datapath.ofproto_parser
+
+        inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS,
+                                             actions)]
+        if buffer_id:
+            mod = parser.OFPFlowMod(datapath=datapath, buffer_id=buffer_id,
+                                    priority=priority, match=match,
+                                    instructions=inst)
+        else:
+            mod = parser.OFPFlowMod(datapath=datapath, priority=priority,
+                                    match=match, instructions=inst)
+        datapath.send_msg(mod)
+
     @set_ev_cls(local_lib.EventRouteResult, MAIN_DISPATCHER)
     def route_result_handler(self, ev):
         dpid = ev.dpid
         port = ev.port
         host = ev.host
-        LOG.debug('Receive route resout, %d:%d %s', dpid, port, host)
+        LOG.info('Receive route resout, %d:%d %s', dpid, port, host)
         remove_list = []
         if dpid == -1:
             # global routing failed
