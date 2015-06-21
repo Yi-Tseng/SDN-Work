@@ -7,8 +7,10 @@ import networkx as nx
 from ryu.lib import hub
 from ryu.lib.hub import StreamServer
 
-LOG = logging.getLogger('load_balance_global')
-LOG.setLevel(logging.DEBUG)
+logging.basicConfig()
+LOG = logging.getLogger(__name__)
+LOG.setLevel(logging.INFO)
+
 MAX_AGENTS = 1024
 
 
@@ -21,10 +23,6 @@ class GlobalController(object):
         self.cross_domain_links = [] # ex: [{src: {dpid: 4, port: 3}, dst: {dpid: 1, port: 1} }]
         self.hosts = {} # host -> domain number
 
-    def _serve_loop(self):
-        # calculate load for each agent and send role to them.
-        while True:
-            hub.sleep(1)
 
     def _connection_factory(self, socket, address):
         print 'connected socket:%s address:%s' % (socket, address)
@@ -43,11 +41,9 @@ class GlobalController(object):
 
 
     def start(self):
-        thr = hub.spawn(self._serve_loop)
-        print 'Waiting for connection.....'
-        self.server.serve_forever()
         
-        hub.joinall([thr])
+        LOG.debug('Waiting for connection.....')
+        self.server.serve_forever()
 
     def print_agents_status(self):
 
@@ -66,13 +62,28 @@ class GlobalController(object):
             })
         self.broad_cast(msg)
 
-        if link not in self.cross_domain_links:
+        for _link in self.cross_domain_links:
+
+            if _link['src']['dpid'] == src['dpid'] and \
+                _link['src']['port'] == src['port']:
+                _link['src']['agent_id'] = agent_id
+                break
+
+            if _link['dst']['dpid'] == src['dpid'] and \
+                _link['dst']['port'] == src['port']:
+                _link['dst']['agent_id'] = agent_id
+                break
+
+        else:
             self.cross_domain_links.append(link)
             self.cross_domain_links.append(link_rev)
+        
+
+            
 
     def broad_cast(self, msg):
 
-        for agent in self.agents:
+        for agent in self.agents.itervalues():
             agent.send(msg)
 
     def get_route(self, dst_host, agent):
@@ -88,7 +99,9 @@ class GlobalController(object):
                 'port': -1,
                 'host': dst_host
                 })
+            LOG.debug('Unknown host %s', dst_host)
             agent.send(msg)
+            return
 
         
         # get source and destination
@@ -118,11 +131,14 @@ class GlobalController(object):
 
         # send route result
         msg = json.dumps({
-            'cmd': "route_result",
+            'cmd': 'route_result',
             'dpid': output_dpid,
             'port': output_port,
             'host': dst_host
         })
+        LOG.debug('send route result to agent %d, %d:%d %s', 
+                 agent.agent_id, output_dpid,
+                 output_port, dst_host)
         agent.send(msg)
 
 
@@ -162,8 +178,8 @@ class GlobalController(object):
         '''
             actually, it use for get route
         '''
-        
         self.hosts[host] = agent
+        LOG.debug('Add host %s to self.hosts', host)
 
 
     def response_dpid(self, dpid, agent_id):
@@ -207,6 +223,7 @@ class GlobalAgent(object):
             while True:
                 buf = self.send_q.get()
                 self.socket.sendall(buf)
+                hub.sleep(0.1)
 
         finally:
             q = self.send_q
@@ -223,33 +240,44 @@ class GlobalAgent(object):
     def recv_loop(self):
 
         while True:
-            buf = self.socket.recv(128)
-            msg = json.loads(buf)
+            try:
+                buf = self.socket.recv(128)
+                bufs = buf.split('\n')
 
-            if msg['cmd'] == 'add_cross_domain_link':
-                LOG.debug('receive cross domain link message')
-                src = msg['src']
-                dst = msg['dst']
-                LOG.debug('src: %d, dst: %d', src, dst)
-                self.global_ctrn.add_cross_domain_link(src, dst, self.agent_id)
+                for buf in bufs:
 
-            elif msg['cmd'] == 'reponse_host':
-                host = msg['host']
-                self.global_ctrn.response_host(host, self)
+                    if len(buf) == 0:
+                        continue
+                    msg = json.loads(buf)
+                    LOG.debug('receive : %s', msg)
+                    if msg['cmd'] == 'add_cross_domain_link':
+                        LOG.debug('receive cross domain link message')
+                        src = msg['src']
+                        dst = msg['dst']
+                        LOG.debug('src: %d, dst: %d', src, dst)
+                        self.global_ctrn.add_cross_domain_link(src, dst, self.agent_id)
 
-            elif msg['cmd'] == 'get_route':
-                dst_host = msg['dst']
-                self.global_ctrn.get_route(dst_host, self)
+                    elif msg['cmd'] == 'response_host':
+                        host = msg['host']
+                        self.global_ctrn.response_host(host, self)
 
-            elif msg['cmd'] == 'response_dpid':
-                dpid = msg['dpid']
-                self.global_ctrn.response_dpid(dpid, self.agent_id)
+                    elif msg['cmd'] == 'get_route':
+                        dst_host = msg['dst']
+                        self.global_ctrn.get_route(dst_host, self)
+
+                    elif msg['cmd'] == 'response_dpid':
+                        dpid = msg['dpid']
+                        self.global_ctrn.response_dpid(dpid, self.agent_id)
+
+                hub.sleep(0.1)
+            except ValueError:
+                LOG.warning('Value error for %s, len: %d', "".join("%02x" % (ord(c), ) for c in buf), len(buf))
             
 
     def serve(self):
         thr = hub.spawn(self.send_loop)
-        self.recv_loop()
-        hub.joinall([thr])
+        thr2 = hub.spawn(self.recv_loop)
+        hub.joinall([thr, thr2])
 
     def have_host(self, mac='00:00:00:00:00:00', ip='0.0.0.0'):
         '''

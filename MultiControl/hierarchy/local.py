@@ -12,46 +12,49 @@ from ryu.controller.handler import MAIN_DISPATCHER
 
 import local_lib
 
-
-LOG = logging.getLogger('local_app')
+LOG = logging.getLogger(__name__)
 OFPPC_NO_FLOOD = 1 << 4
+mDNS = ['33:33:00:00:00:fb', '01:00:5E:00:00:FB']
+multicast_list = ["33:33:00:00:00:%02X" % x for x in range(0, 256)]
 
 class LocalControllerApp(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
-    
+    _CONTEXTS = {
+        'local_lib': local_lib.LocalControllerLib
+    }
 
 
     def __init__(self, *args, **kwargs):
         super(LocalControllerApp, self).__init__(*args, **kwargs)
-        self.local_lib = local_lib.LocalControllerLib('127.0.0.1', 10807)
-        self.local_lib.start_serve()
+        self.local_lib = kwargs['local_lib']
+        # self.local_lib = local_lib.LocalControllerLib('127.0.0.1', 10807)
+        self.local_lib.start_serve('127.0.0.1', 10807)
         self.global_port = {}
         self.route_list = []
         self.graph = None
     
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def packet_in_handler(self, ev):
-
         msg = ev.msg
         datapath = msg.datapath
+
         try:
             # src: from other switch
             src_dpid, src_port_no = LLDPPacket.lldp_parse(msg.data)
             # dst: this switch
             dst_dpid, dst_port_no = datapath.id, msg.match['in_port']
 
-            if int(src_dpid) > 1024 or int(dst_dpid) > 1024:
+            if src_dpid > 1024 or dst_dpid > 1024:
                 # hack: ignote illegal switch
                 return
-
-            switch = api.get_switch(self, str(src_dpid))
+            
+            switch = api.get_switch(self, src_dpid)
 
             # not this topology switch
             if len(switch) != 0:
                 return
 
             # send cross domain link add
-            LOG.info('Sending cross doamin link from %s:%d to %s:%d', src_dpid, src_port_no, dst_dpid, dst_port_no)
             self.local_lib.send_cross_domain_link(dst_dpid, dst_port_no, src_dpid, src_port_no)
 
             # add global port
@@ -69,16 +72,23 @@ class LocalControllerApp(app_manager.RyuApp):
         dpid = datapath.id
         pkt = packet.Packet(msg.data)
         eth = pkt.get_protocols(ethernet.ethernet)[0]
-
+        src = eth.src
         dst = eth.dst
 
         if dst not in self.local_lib.hosts:
             # can't find host in local topology
             # ask global and let this msg queued
+            if dst in mDNS or dst in multicast_list:
+                return
+
+            if dst == 'ff:ff:ff:ff:ff:ff':
+                self._flood_packet(msg)
+                return
             self.route_list.append((dst, msg))
             self.local_lib.get_route(dst)
             return
 
+        LOG.debug('Packet in, from %s, to %s', src, dst)
         # found in local, do local routing
         # two case:
         # 1. In same switch
@@ -107,9 +117,9 @@ class LocalControllerApp(app_manager.RyuApp):
 
         for link in links:
 
-            if int(link.src.dpid) == src and \
-                int(link.dst.dpid) == dst:
-                return int(link.src.port_no)
+            if link.src.dpid == src and \
+                link.dst.dpid == dst:
+                return link.src.port_no
 
 
     def _flood_packet(self, msg):
@@ -145,11 +155,12 @@ class LocalControllerApp(app_manager.RyuApp):
         out = parser.OFPPacketOut(datapath=datapath, buffer_id=msg.buffer_id,
                                   in_port=in_port, actions=actions,
                                   data=data)
+        LOG.debug('packet out to %d:%d', datapath.id, out_port)
         datapath.send_msg(out)
 
     def _packet_out_to(self, msg, dst_dpid, dst_out_port):
         dp = msg.datapath
-        src_dpid = int(dp.id)
+        src_dpid = dp.id
 
         # same dp
         if src_dpid == dst_dpid:
@@ -160,11 +171,11 @@ class LocalControllerApp(app_manager.RyuApp):
             links = api.get_all_link(self)
 
             for link in links:
-                src = int(link.src.dpid)
-                dst = int(link.dst.dpid)
+                src = link.src.dpid
+                dst = link.dst.dpid
                 g.add_edge(src, dst)
-            src = int(src_dpid)
-            dst = int(dst_dpid)
+            src = src_dpid
+            dst = dst_dpid
             path = None
 
             if nx.has_path(g, src, dst):
@@ -180,11 +191,12 @@ class LocalControllerApp(app_manager.RyuApp):
         dpid = ev.dpid
         port = ev.port
         host = ev.host
+        LOG.debug('Receive route resout, %d:%d %s', dpid, port, host)
         remove_list = []
         if dpid == -1:
             # global routing failed
             # do broad cast
-            
+            LOG.debug('Unknown hsot %s', host)
             for route_req in self.route_list:
 
                 if route_req[0] != host:
@@ -194,7 +206,12 @@ class LocalControllerApp(app_manager.RyuApp):
 
         else:
             # global routing not failed
-            pass
+            for route_req in self.route_list:
+
+                if route_req[0] != host:
+                    continue
+                self._packet_out_to(route_req[1], dpid, port)
+                remove_list.append(route_req)
 
         for remove_item in remove_list:
 
@@ -208,7 +225,7 @@ class LocalControllerApp(app_manager.RyuApp):
     @set_ev_cls(local_lib.EventAskDpid, MAIN_DISPATCHER)
     def ask_dpid_handler(self, ev):
         dpid = ev.dpid
-        switch = api.get_switch(self, str(dpid))
+        switch = api.get_switch(self, dpid)
 
         if len(switch) != 0:
             self.local_lib.response_dpid(dpid)
@@ -223,8 +240,7 @@ class LocalControllerApp(app_manager.RyuApp):
 
     @set_ev_cls(local_lib.EventHostDiscovery, MAIN_DISPATCHER)
     def host_discovery_handler(self, ev):
-        LOG.info('Discover host %s on %s, port %d', ev.host, ev.dpid, ev.port)
-        self.local_lib.response_host(ev.host)
+        LOG.debug('Discover host %s on %s, port %d', ev.host, ev.dpid, ev.port)
 
 
 

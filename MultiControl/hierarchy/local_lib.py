@@ -3,17 +3,19 @@ import socket
 import logging
 import json
 
+
 from ryu.base import app_manager
 from ryu.controller import event
 from ryu.controller import ofp_event
 from ryu.controller.handler import set_ev_cls
 from ryu.controller.handler import MAIN_DISPATCHER
+from ryu.topology import api
 from ryu.lib.packet import packet, ethernet
 from ryu.ofproto import ofproto_v1_0, ofproto_v1_2, ofproto_v1_3
 from ryu.lib import hub
 from ryu.topology.switches import LLDPPacket
 
-LOG = logging.getLogger('local_lib')
+LOG = logging.getLogger(__name__)
 
 class EventRouteResult(event.EventBase):
 
@@ -51,13 +53,16 @@ LOG = logging.getLogger('local_lib')
 class LocalControllerLib(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
 
-    def __init__(self, server_addr, server_port, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super(LocalControllerLib, self).__init__(*args, **kwargs)
+        self.name = 'local_lib'
+        self.server_addr = None
+        self.server_port = None
         self.agent_id = -1
         self.send_q = hub.Queue(16)
         self.hosts = {}
-        self.server_addr = server_addr
-        self.server_port = server_port
+        self.cross_domain_links = []
+        
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
@@ -77,25 +82,60 @@ class LocalControllerLib(app_manager.RyuApp):
                 port = msg.match['in_port']
 
             if port >= 1024:
-                # hack: ignore some fault port
+                # hack: ignore some strange port
                 return
+
+            # ignore global host
+            for link in self.cross_domain_links:
+
+                if link['src']['dpid'] == dpid and \
+                    link['src']['port'] == port:
+                    return
+
+            # TODO, check again if host already in global port
 
             pkt = packet.Packet(msg.data)
             eth = pkt.get_protocols(ethernet.ethernet)[0]
             mac = eth.src
 
-            if mac not in self.hosts and port != -1:
-                self.hosts[mac] = (int(dpid), int(port))
+            if mac not in self.hosts and port != -1 and \
+                not self._host_exist_in_port(dpid, port) and \
+                not self._is_switch_port_to_port(dpid, port):
+                LOG.debug('Add host %s to %d:%d', mac, dpid, port)
+                self.hosts[mac] = (dpid, port)
+                self.response_host(mac)
                 ev = EventHostDiscovery(dpid, port, mac)
                 self.send_event_to_observers(ev)
 
-    def start_serve(self):
+    def _is_switch_port_to_port(self, dpid, port):
+        links = api.get_all_link(self)
+
+        for link in links:
+
+            if link.src.dpid == dpid and \
+                link.src.port_no == port:
+                return True
+
+        return False
+
+    def _host_exist_in_port(self, dpid, port):
+
+        for (d, p) in self.hosts.itervalues():
+            if d == dpid and p == port:
+                return True
+
+        return False
+
+    def start_serve(self, server_addr, server_port):
 
         try:
+            self.server_addr = server_addr
+            self.server_port = server_port
             self.socket.connect((self.server_addr, self.server_port))
+
             hub.spawn(self._serve_loop)
             hub.spawn(self._send_loop)
-            # hub.joinall([t1, t2])
+
 
         except Exception, ex:
             raise ex
@@ -106,6 +146,7 @@ class LocalControllerLib(app_manager.RyuApp):
 
             while True:
                 buf = self.send_q.get()
+                buf += '\n'
                 self.socket.sendall(buf)
 
         finally:
@@ -124,10 +165,11 @@ class LocalControllerLib(app_manager.RyuApp):
         
         while True:
             buf = self.socket.recv(128)
-
+            LOG.debug('Receive: %s', buf)
             try:
                 msg = json.loads(buf)
             except ValueError:
+                LOG.warning('Error to decode to json: %s', buf)
                 continue
 
             ev = None
@@ -158,11 +200,21 @@ class LocalControllerLib(app_manager.RyuApp):
             self.send_q.put(msg)
 
     def send_cross_domain_link(self, local_dpid, local_port, out_dpid, out_port):
+
+        link = {
+            'src': {'dpid': local_dpid, 'port': local_port},
+            'dst': {'dpid': out_dpid, 'port': out_port}
+        }
+
+        if link in self.cross_domain_links:
+            return
+        self.cross_domain_links.append(link)
         msg = json.dumps({
+            'cmd': 'add_cross_domain_link',
             'src': {'dpid': local_dpid, 'port': local_port},
             'dst': {'dpid': out_dpid, 'port': out_port}
             })
-
+        LOG.debug('Sending cross doamin link from %s:%d to %s:%d', local_dpid, local_port, out_dpid, out_port)
         self.send(msg)
 
     def response_host(self, host_mac):
@@ -170,6 +222,7 @@ class LocalControllerLib(app_manager.RyuApp):
             'cmd': 'response_host',
             'host': host_mac
         })
+        LOG.debug('Sending response host %s', host_mac)
         self.send(msg)
 
     def response_dpid(self, dpid):
@@ -177,6 +230,7 @@ class LocalControllerLib(app_manager.RyuApp):
             'cmd': 'response_dpid',
             'dpid': dpid
         })
+        LOG.debug('Sending response dpid %d', dpid)
         self.send(msg)
 
     def get_route(self, dst_mac):
@@ -184,5 +238,6 @@ class LocalControllerLib(app_manager.RyuApp):
             'cmd': 'get_route',
             'dst': dst_mac
         })
+        LOG.debug('Sending get route %s', dst_mac)
         self.send(msg)
 
