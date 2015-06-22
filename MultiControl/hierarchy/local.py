@@ -158,6 +158,17 @@ class LocalControllerApp(app_manager.RyuApp):
         LOG.debug('packet out to %d:%d', datapath.id, out_port)
         datapath.send_msg(out)
 
+        # add flow
+        pkt = packet.Packet(msg.data)
+        eth = pkt.get_protocols(ethernet.ethernet)[0]
+        dst = eth.dst
+        match = parser.OFPMatch(in_port=in_port, eth_dst=dst)
+
+        if msg.buffer_id != ofproto.OFP_NO_BUFFER:
+            self._add_flow(datapath, 1, match, actions, msg.buffer_id)
+        else:
+            self._add_flow(datapath, 1, match, actions)
+
     def _packet_out_to(self, msg, dst_dpid, dst_out_port):
         dp = msg.datapath
         src_dpid = dp.id
@@ -206,7 +217,7 @@ class LocalControllerApp(app_manager.RyuApp):
         dpid = ev.dpid
         port = ev.port
         host = ev.host
-        LOG.info('Receive route resout, %d:%d %s', dpid, port, host)
+        LOG.info('Receive route result, %d:%d %s', dpid, port, host)
         remove_list = []
         if dpid == -1:
             # global routing failed
