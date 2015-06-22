@@ -37,12 +37,13 @@ class GlobalController(object):
             agent.set_agent_id(agent_id)
             self.agents[agent_id] = agent
             agent.serve()
+            LOG.info('Remove agent %d', agent_id)
             del self.agents[agent_id]
 
 
     def start(self):
         
-        LOG.debug('Waiting for connection.....')
+        LOG.info('Waiting for connection.....')
         self.server.serve_forever()
 
     def print_agents_status(self):
@@ -220,7 +221,7 @@ class GlobalAgent(object):
 
         try:
 
-            while True:
+            while self.is_active:
                 buf = self.send_q.get()
                 self.socket.sendall(buf)
                 hub.sleep(0.1)
@@ -239,10 +240,19 @@ class GlobalAgent(object):
 
     def recv_loop(self):
 
-        while True:
+        while self.is_active:
             try:
-                buf = self.socket.recv(128)
-                bufs = buf.split('\n')
+                _buf = self.socket.recv(128)
+
+                if len(_buf) == 0:
+                    LOG.info('connection fail, close')
+                    self.is_active = False
+                    break
+
+                while '\n' != _buf[-1]:
+                    _buf += self.socket.recv(128)
+
+                bufs = _buf.split('\n')
 
                 for buf in bufs:
 
@@ -271,7 +281,7 @@ class GlobalAgent(object):
 
                 hub.sleep(0.1)
             except ValueError:
-                LOG.warning('Value error for %s, len: %d', "".join("%02x" % (ord(c), ) for c in buf), len(buf))
+                LOG.warning('Value error for %s, len: %d', buf, len(buf))
             
 
     def serve(self):
