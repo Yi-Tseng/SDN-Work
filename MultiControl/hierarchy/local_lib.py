@@ -58,6 +58,7 @@ class LocalControllerLib(app_manager.RyuApp):
         self.name = 'local_lib'
         self.server_addr = None
         self.server_port = None
+        self.is_active = False
         self.agent_id = -1
         self.send_q = hub.Queue(16)
         self.hosts = {}
@@ -132,10 +133,9 @@ class LocalControllerLib(app_manager.RyuApp):
             self.server_addr = server_addr
             self.server_port = server_port
             self.socket.connect((self.server_addr, self.server_port))
-
+            self.is_active = True
             hub.spawn(self._serve_loop)
             hub.spawn(self._send_loop)
-
 
         except Exception, ex:
             raise ex
@@ -144,7 +144,7 @@ class LocalControllerLib(app_manager.RyuApp):
 
         try:
 
-            while True:
+            while self.is_active:
                 buf = self.send_q.get()
                 buf += '\n'
                 self.socket.sendall(buf)
@@ -163,8 +163,13 @@ class LocalControllerLib(app_manager.RyuApp):
 
     def _serve_loop(self):
         
-        while True:
+        while self.is_active:
             buf = self.socket.recv(128)
+
+            if len(buf) == 0:
+                LOG.info('connection fail, close')
+                self.is_active = False
+                break
             LOG.debug('Receive: %s', buf)
             try:
                 msg = json.loads(buf)
@@ -214,7 +219,7 @@ class LocalControllerLib(app_manager.RyuApp):
             'src': {'dpid': local_dpid, 'port': local_port},
             'dst': {'dpid': out_dpid, 'port': out_port}
             })
-        LOG.debug('Sending cross doamin link from %s:%d to %s:%d', local_dpid, local_port, out_dpid, out_port)
+        LOG.info('Sending cross doamin link from %s:%d to %s:%d', local_dpid, local_port, out_dpid, out_port)
         self.send(msg)
 
     def response_host(self, host_mac):
