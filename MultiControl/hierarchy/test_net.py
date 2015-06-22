@@ -29,13 +29,13 @@ if '__main__' == __name__:
 
     switches = []
     for domain in range(0, 3):
-        s1 = net.addSwitch('s%d' % (domain*3 + 0, ))
-        s2 = net.addSwitch('s%d' % (domain*3 + 1, ))
-        s3 = net.addSwitch('s%d' % (domain*3 + 2, ))
+        s1 = net.addSwitch('s%d' % (domain*3 + 1, ))
+        s2 = net.addSwitch('s%d' % (domain*3 + 2, ))
+        s3 = net.addSwitch('s%d' % (domain*3 + 3, ))
         net.addLink(s1, s2)
         net.addLink(s1, s3)
-        h1 = net.addHost('h%d' % (domain*2 + 0, ))
-        h2 = net.addHost('h%d' % (domain*2 + 1, ))
+        h1 = net.addHost('h%d' % (domain*2 + 1, ))
+        h2 = net.addHost('h%d' % (domain*2 + 2, ))
         net.addLink(s2, h1)
         net.addLink(s3, h2)
         switches.append(s1)
@@ -56,7 +56,7 @@ if '__main__' == __name__:
         switches[domain*3 + 0].start(controllers[domain])
         switches[domain*3 + 1].start(controllers[domain])
         switches[domain*3 + 2].start(controllers[domain])
-    
+
     for sw in switches:
         ofp_version(sw, ['OpenFlow13'])
 
