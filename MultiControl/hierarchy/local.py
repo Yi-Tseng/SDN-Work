@@ -32,7 +32,7 @@ class LocalControllerApp(app_manager.RyuApp):
         self.global_port = {}
         self.route_list = []
         self.graph = None
-    
+
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def packet_in_handler(self, ev):
         msg = ev.msg
@@ -47,7 +47,7 @@ class LocalControllerApp(app_manager.RyuApp):
             if src_dpid > 1024 or dst_dpid > 1024:
                 # hack: ignote illegal switch
                 return
-            
+
             switch = api.get_switch(self, src_dpid)
 
             # not this topology switch
