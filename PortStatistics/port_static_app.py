@@ -7,25 +7,19 @@ from ryu.controller.handler import set_ev_cls
 from ryu.ofproto import ofproto_v1_3
 from ryu.lib.packet import packet
 from ryu.lib.packet import ethernet
-from ryu.controller import dpset
-from static_updater import StaticUpdater
+from ryu.topology import api as topo_api
+from ryu.lib import hub
 
 class PortStaticApp(app_manager.RyuApp):
 
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
 
-    _CONTEXTS = {
-        'static_updater': StaticUpdater
-    }
-
     def __init__(self, *args, **kwargs):
         super(PortStaticApp, self).__init__(*args, **kwargs)
         self.mac_to_port = {}
-        self.dps = []
         self.port_infos = {}
-        self.static_updater = kwargs["static_updater"]
-        self.static_updater.set_ryu_app(self)
-        self.static_updater.start()
+        hub.spawn(self.port_request_loop)
+
 
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
     def switch_features_handler(self, ev):
@@ -112,13 +106,6 @@ class PortStaticApp(app_manager.RyuApp):
                                   in_port=in_port, actions=actions, data=data)
         datapath.send_msg(out)
 
-    @set_ev_cls(dpset.EventDP, MAIN_DISPATCHER)
-    def event_dp_handler(self, ev):
-
-        if ev.enter:
-            print "Datapath %X in" % (ev.dp.id)
-            self.dps.append(ev.dp)
-
 
     @set_ev_cls(ofp_event.EventOFPPortStatsReply, MAIN_DISPATCHER)
     def port_stats_event_handler(self, ev):
@@ -146,12 +133,22 @@ class PortStaticApp(app_manager.RyuApp):
                 port_info["tx_bytes"] = stat.tx_bytes
                 port_info["last_update"] = current_time
 
-        print "Bandwidth informations"
-
         for name in self.port_infos:
             port_info = self.port_infos[name]
             print "[%s] rx: %f, tx: %f" % (name, port_info["rx_band"], port_info["tx_band"])
 
 
+    def port_request_loop(self):
+        time.sleep(5)
 
+        while True:
+            switches = topo_api.get_all_switch(self)
+            dps = [switch.dp for switch in switches]
+            for dp in dps:
+                parser = dp.ofproto_parser
+                ofproto = dp.ofproto
+                msg = parser.OFPPortStatsRequest(dp, 0, ofproto.OFPP_ANY)
+                dp.send_msg(msg)
+
+            time.sleep(1)
 
