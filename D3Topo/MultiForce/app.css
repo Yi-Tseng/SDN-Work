@@ -1,0 +1,12 @@
+@import url("reset.css");
+
+.link {
+  fill: none;
+  stroke: #000;
+  cursor: default;
+  z-index: 1;
+}
+
+.node {
+    z-index: 2;
+}
