@@ -13,7 +13,6 @@ LOG.setLevel(logging.INFO)
 
 MAX_AGENTS = 1024
 
-
 class GlobalController(object):
 
     def __init__(self, *args):
@@ -77,10 +76,8 @@ class GlobalController(object):
 
         else:
             self.cross_domain_links.append(link)
-            self.cross_domain_links.append(link_rev)
-        
+            self.cross_domain_links.append(link_rev)            
 
-            
 
     def broad_cast(self, msg):
 
@@ -138,8 +135,7 @@ class GlobalController(object):
             'host': dst_host
         })
         LOG.debug('send route result to agent %d, %d:%d %s', 
-                 agent.agent_id, output_dpid,
-                 output_port, dst_host)
+            agent.agent_id, output_dpid, output_port, dst_host)
         agent.send(msg)
 
 
