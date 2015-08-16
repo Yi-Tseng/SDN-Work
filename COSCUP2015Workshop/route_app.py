@@ -30,7 +30,6 @@ class RouteApp(app_manager.RyuApp):
 
     def find_host(self, mac_addr):
         hosts = ryu_api.get_all_host(self)
-        self.logger.info(hosts)
         for host in hosts:
             if host.mac == mac_addr:
                 return host
@@ -126,6 +125,13 @@ class RouteApp(app_manager.RyuApp):
             actions=actions, data=data)
         dp.send_msg(out)
 
+    def install_path(self, match, path):
+        for node in path:
+            dpid = int(node.split('.')[0])
+            port_no = int(node.split('.')[1])
+            dp = self.get_dp(dpid)
+            actions = [dp.ofproto_parser.OFPActionOutput(port_no)]
+            self.add_flow(dp, match, actions)
 
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def packet_in_handler(self, ev):
@@ -145,7 +151,8 @@ class RouteApp(app_manager.RyuApp):
         dst = eth.dst
 
         if dst.startswith('33:33'):
-            # multicast, ignore it....
+            # IP multicast, flood it....
+            self.flood_packet(dp, msg)
             return
 
         if eth.ethertype == ether_types.ETH_TYPE_ARP:
@@ -184,21 +191,20 @@ class RouteApp(app_manager.RyuApp):
 
         # Now, insert flows to switches!
         # shortest_path example:
+        # from dpid 7, port 2 to dpid 3 port 1
         # ['7.2', '7.3', '5.2', '5.3', '1.2', '1.1', '2.3', '2.1', '3.3', '3.1']
-
 
         # create match
         match = dp.ofproto_parser.OFPMatch(
             dl_dst=haddr_to_bin(dst))
 
-        # add flows
-        for i in range(1, len(shortest_path), 2):
-            node = shortest_path[i]
-            dpid = int(node.split('.')[0])
-            port_no = int(node.split('.')[1])
-            dp = self.get_dp(dpid)
-            actions = [dp.ofproto_parser.OFPActionOutput(port_no)]
-            self.add_flow(dp, match, actions)
+        self.install_path(match, shortest_path[1::2])
+
+        # create reverse path
+        match = dp.ofproto_parser.OFPMatch(
+            dl_dst=haddr_to_bin(src))
+
+        self.install_path(match, shortest_path[2::2])
 
         # packet out this packet!
         node = shortest_path[1]
