@@ -7,6 +7,26 @@ from ryu.lib.packet import packet
 from ryu.lib.packet import ethernet, ipv4, udp
 from ryu.lib.packet import ether_types
 
+'''
+To test this code
+
+1. Create "single" topology
+
+h1 -- s1 -- h2
+
+2. start xterm for both h1 and h2 and run nc:
+
+h1:
+nc -u 10.0.0.2 8000
+
+h2:
+nc -u -l 8000
+
+3. send packet from h1 to h2, and h2 will 
+receive "Hellooooooooo~~~~~~~~~" string
+'''
+
+
 class PacketGenApp(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
 
