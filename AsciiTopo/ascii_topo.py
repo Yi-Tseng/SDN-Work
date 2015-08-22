@@ -43,10 +43,16 @@ for switch in switches:
 
         for t in tmp:
             cindex = tmp.index(t)
+            src_ports = [l['src'] if l != None else None for l in tmp]
             dst_ports = [l['dst'] if l != None else None for l in tmp]
+
             if t == None and (port in dst_ports):
                 dindex = dst_ports.index(port)
                 print('{}-{}'.format(colors[dindex % num_colors], end_color), end='')
+
+            elif t == None and (port in src_ports):
+                sindex = src_ports.index(port)
+                print('{}-{}'.format(colors[sindex % num_colors], end_color), end='')
 
             elif t == None:
                 print(' ', end='')
