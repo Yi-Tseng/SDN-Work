@@ -55,7 +55,7 @@ for switch in switches:
 
         for t in tmp:
             if len(thosts) > 0:
-                print('-' * len(tmp), end='')
+                print('-' * (len(tmp) + 1), end='')
                 print('-'.join([th['mac'] for th in thosts]), end='')
                 thosts = []
                 break
