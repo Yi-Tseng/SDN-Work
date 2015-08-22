@@ -5,10 +5,13 @@ import json
 
 # By John-Lin
 colors = [
-    '\033[94m',
+    '\033[90m',
+    '\033[91m',
     '\033[92m',
     '\033[93m',
-    '\033[91m'
+    '\033[94m',
+    '\033[95m',
+    '\033[96m',
 ]
 end_color = '\033[0m'
 num_colors = len(colors)
