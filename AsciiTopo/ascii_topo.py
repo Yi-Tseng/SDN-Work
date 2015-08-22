@@ -17,6 +17,8 @@ switches = json.load(open('switches.json', 'r'))
 links = json.load(open('links.json', 'r'))
 hosts = json.load(open('hosts.json', 'r'))
 tmp = []
+thosts = []
+
 for switch in switches:
     print('{}┐{:>8}'.format(switch['dpid'], ' '), end='')
 
@@ -47,7 +49,17 @@ for switch in switches:
                 else:
                     tmp.append(link)
 
+        for host in hosts:
+            if port['hw_addr'] == host['port']['hw_addr']:
+                thosts.append(host)
+
         for t in tmp:
+            if len(thosts) > 0:
+                print('-' * len(tmp), end='')
+                print('-'.join([th['mac'] for th in thosts]), end='')
+                thosts = []
+                break
+
             cindex = tmp.index(t)
             src_ports = [l['src'] if l != None else None for l in tmp]
             dst_ports = [l['dst'] if l != None else None for l in tmp]
