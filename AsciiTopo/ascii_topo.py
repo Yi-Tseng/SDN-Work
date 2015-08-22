@@ -16,14 +16,14 @@ num_colors = len(colors)
 switches = json.load(open('switches.json', 'r'))
 links = json.load(open('links.json', 'r'))
 hosts = json.load(open('hosts.json', 'r'))
-tmp = []
+tlinks = []
 thosts = []
 
 for switch in switches:
     print('{}┐{:>8}'.format(switch['dpid'], ' '), end='')
 
-    for t in tmp:
-        cindex = tmp.index(t)
+    for t in tlinks:
+        cindex = tlinks.index(t)
         if t == None:
             print(' ', end='')
         else:
@@ -42,27 +42,27 @@ for switch in switches:
             if port['hw_addr'] == link['src']['hw_addr'] and\
                int(link['src']['dpid']) < int(link['dst']['dpid']):
 
-                if None in tmp:
-                    nindex = tmp.index(None)
-                    tmp[nindex] = link
+                if None in tlinks:
+                    nindex = tlinks.index(None)
+                    tlinks[nindex] = link
 
                 else:
-                    tmp.append(link)
+                    tlinks.append(link)
 
         for host in hosts:
             if port['hw_addr'] == host['port']['hw_addr']:
                 thosts.append(host)
 
-        for t in tmp:
+        for t in tlinks:
             if len(thosts) > 0:
-                print('-' * (len(tmp) + 1), end='')
+                print('-' * (len(tlinks) + 1), end='')
                 print('-'.join([th['mac'] for th in thosts]), end='')
                 thosts = []
                 break
 
-            cindex = tmp.index(t)
-            src_ports = [l['src'] if l != None else None for l in tmp]
-            dst_ports = [l['dst'] if l != None else None for l in tmp]
+            cindex = tlinks.index(t)
+            src_ports = [l['src'] if l != None else None for l in tlinks]
+            dst_ports = [l['dst'] if l != None else None for l in tlinks]
 
             if t == None and (port in dst_ports):
                 dindex = dst_ports.index(port)
@@ -80,10 +80,10 @@ for switch in switches:
 
             elif port['hw_addr'] == t['dst']['hw_addr']:
                 print('{}┘{}'.format(colors[cindex % num_colors], end_color), end='')
-                tmp[cindex] = None
+                tlinks[cindex] = None
 
-                while len(tmp) > 0 and tmp[-1] == None:
-                    del tmp[-1]
+                while len(tlinks) > 0 and tlinks[-1] == None:
+                    del tlinks[-1]
 
             else:
                 print('{}|{}'.format(colors[cindex % num_colors], end_color), end='')
