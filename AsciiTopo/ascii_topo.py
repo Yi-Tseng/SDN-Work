@@ -39,7 +39,13 @@ for switch in switches:
         for link in links:
             if port['hw_addr'] == link['src']['hw_addr'] and\
                int(link['src']['dpid']) < int(link['dst']['dpid']):
-                tmp.append(link)
+
+                if None in tmp:
+                    nindex = tmp.index(None)
+                    tmp[nindex] = link
+
+                else:
+                    tmp.append(link)
 
         for t in tmp:
             cindex = tmp.index(t)
@@ -63,6 +69,10 @@ for switch in switches:
             elif port['hw_addr'] == t['dst']['hw_addr']:
                 print('{}┘{}'.format(colors[cindex % num_colors], end_color), end='')
                 tmp[cindex] = None
+
+                while len(tmp) > 0 and tmp[-1] == None:
+                    del tmp[-1]
+
             else:
                 print('{}|{}'.format(colors[cindex % num_colors], end_color), end='')
 
