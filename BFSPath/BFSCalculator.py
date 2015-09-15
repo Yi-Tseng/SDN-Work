@@ -1,5 +1,5 @@
 from collections import deque
-import pdb
+
 
 class BFSCalculator(object):
     '''
@@ -91,7 +91,8 @@ class BFSCalculator(object):
         '''
 
         result = []
-        if not self.is_linked(src, dst): return result
+        if not self.is_linked(src, dst):
+            return result
 
         # filter to get links that source and dstination is matched
         def f(l):
@@ -101,7 +102,7 @@ class BFSCalculator(object):
         for fl in filtered_link:
             s_port = fl.src.port_no
             d_port = fl.dst.port_no
-            result.append({'src_port':s_port, 'dst_port':d_port})
+            result.append({'src_port': s_port, 'dst_port': d_port})
 
         return result
 
@@ -141,8 +142,7 @@ class BFSCalculator(object):
             ]
             if destination is not reachable, it'll return an empty list
         '''
-        # pdb.set_trace()
-        records = {src:0}
+        records = {src: 0}
         node_queue = deque()
         node_queue.append(src)
         while len(node_queue) != 0:
@@ -164,7 +164,7 @@ class BFSCalculator(object):
             return []
 
         # get shortst path...
-        sorted_res = sorted(records.items(), key=lambda x:x[1], reverse=True)
+        sorted_res = sorted(records.items(), key=lambda x: x[1], reverse=True)
 
         # remove unnecessary nodes
         dst_deepth = records[dst]
@@ -187,7 +187,6 @@ class BFSCalculator(object):
 
         return result
 
-
     def get_short_path_rec(self, deepth_set, deepth, result):
         '''get shotest path by using recursive method'''
 
@@ -196,7 +195,7 @@ class BFSCalculator(object):
             return True
 
         else:
-            current_node = result[len(result)-1]
+            current_node = result[len(result) - 1]
             pos_nodes = deepth_set[deepth - 1]
 
             for node in pos_nodes:
@@ -204,10 +203,9 @@ class BFSCalculator(object):
 
                 if self.is_linked(current_node, node):
                     result.append(node)
-                    res = self.get_short_path_rec(deepth_set, deepth-1, result)
+                    res = self.get_short_path_rec(deepth_set, deepth - 1, result)
                     if res:
                         return True
                     result.pop()
 
         return False
-

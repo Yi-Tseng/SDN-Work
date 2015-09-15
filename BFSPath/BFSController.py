@@ -15,6 +15,7 @@ from ryu.ofproto import ofproto_v1_3
 from ryu.topology import api
 from BFSCalculator import BFSCalculator
 
+
 class BFSSwitch(app_manager.RyuApp):
     '''
     Using BFS to generate path.
@@ -23,6 +24,7 @@ class BFSSwitch(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
 
     dps = {}
+
     def __init__(self, *args, **kwargs):
         super(BFSSwitch, self).__init__(*args, **kwargs)
 
@@ -65,4 +67,3 @@ class BFSSwitch(app_manager.RyuApp):
         dst_mac = arp_pkt.dst_mac
         dst_ip = arp_pkt.dst_ip
         print '[arp] %s %s -> %s %s' % (src_mac, src_ip, dst_mac, dst_ip)
-
