@@ -10,6 +10,7 @@ from ryu.ofproto import ofproto_v1_3
 
 class GetSwitches(app_manager.RyuApp):
     switches = []
+
     def __init__(self, *args, **kwargs):
         super(GetSwitches, self).__init__(*args, **kwargs)
 
@@ -26,12 +27,8 @@ class GetSwitches(app_manager.RyuApp):
             print "Ports :"
             for port in ports:
                 print port.to_dict()
-            
+
             print "Links :"
             links = api.get_link(self, ev.dp.id)
             for link in links:
                 print link.to_dict()
-
-
-
-     
