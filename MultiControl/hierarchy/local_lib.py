@@ -17,6 +17,7 @@ from ryu.topology.switches import LLDPPacket
 
 LOG = logging.getLogger(__name__)
 
+
 class EventRouteResult(event.EventBase):
 
     def __init__(self, dpid, port, host):
@@ -24,6 +25,7 @@ class EventRouteResult(event.EventBase):
         self.dpid = dpid
         self.port = port
         self.host = host
+
 
 class EventAskDpid(event.EventBase):
 
@@ -41,6 +43,7 @@ class EventAskHost(event.EventBase):
         super(EventAskHost, self).__init__()
         self.host = host
 
+
 class EventHostDiscovery(event.EventBase):
 
     def __init__(self, dpid, port, host):
@@ -50,6 +53,8 @@ class EventHostDiscovery(event.EventBase):
         self.host = host
 
 LOG = logging.getLogger('local_lib')
+
+
 class LocalControllerLib(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
 
@@ -63,7 +68,7 @@ class LocalControllerLib(app_manager.RyuApp):
         self.send_q = hub.Queue(16)
         self.hosts = {}
         self.cross_domain_links = []
-        
+
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
@@ -90,7 +95,7 @@ class LocalControllerLib(app_manager.RyuApp):
             for link in self.cross_domain_links:
 
                 if link['src']['dpid'] == dpid and \
-                    link['src']['port'] == port:
+                   link['src']['port'] == port:
                     return
 
             # TODO, check again if host already in global port
@@ -101,7 +106,7 @@ class LocalControllerLib(app_manager.RyuApp):
 
             if mac not in self.hosts and port != -1 and \
                 not self._host_exist_in_port(dpid, port) and \
-                not self._is_switch_port_to_port(dpid, port):
+                    not self._is_switch_port_to_port(dpid, port):
                 LOG.debug('Add host %s to %d:%d', mac, dpid, port)
                 self.hosts[mac] = (dpid, port)
                 self.response_host(mac)
@@ -114,7 +119,7 @@ class LocalControllerLib(app_manager.RyuApp):
         for link in links:
 
             if link.src.dpid == dpid and \
-                link.src.port_no == port:
+               link.src.port_no == port:
                 return True
 
         return False
@@ -162,7 +167,7 @@ class LocalControllerLib(app_manager.RyuApp):
                 pass
 
     def _serve_loop(self):
-        
+
         while self.is_active:
             buf = self.socket.recv(128)
 
@@ -197,7 +202,7 @@ class LocalControllerLib(app_manager.RyuApp):
                 ev = EventRouteResult(dpid, port, host)
 
             if ev != None:
-                self.send_event_to_observers(ev)                
+                self.send_event_to_observers(ev)
 
     def send(self, msg):
 
@@ -218,7 +223,7 @@ class LocalControllerLib(app_manager.RyuApp):
             'cmd': 'add_cross_domain_link',
             'src': {'dpid': local_dpid, 'port': local_port},
             'dst': {'dpid': out_dpid, 'port': out_port}
-            })
+        })
         LOG.info('Sending cross doamin link from %s:%d to %s:%d', local_dpid, local_port, out_dpid, out_port)
         self.send(msg)
 
@@ -245,4 +250,3 @@ class LocalControllerLib(app_manager.RyuApp):
         })
         LOG.debug('Sending get route %s', dst_mac)
         self.send(msg)
-

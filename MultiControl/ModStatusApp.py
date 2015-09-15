@@ -10,8 +10,10 @@ from ryu.ofproto import ofproto_v1_3
 
 import random
 
+
 class ModStatusApp(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
+
     def __init__(self, *args, **kwargs):
         super(ModStatusApp, self).__init__(*args, **kwargs)
         self.gen_id = 0
@@ -23,8 +25,6 @@ class ModStatusApp(app_manager.RyuApp):
         pkt = packet.Packet(msg.data)
 
         print 'get a packet: %s' % (pkt)
-
-
 
     @set_ev_cls(dpset.EventDP, MAIN_DISPATCHER)
     def on_dp_change(self, ev):
@@ -38,9 +38,8 @@ class ModStatusApp(app_manager.RyuApp):
             print 'dp entered, id is %s' % (dpid)
             self.send_role_request(dp, ofp.OFPCR_ROLE_EQUAL, self.gen_id)
 
-
     @set_ev_cls(ofp_event.EventOFPErrorMsg,
-            [HANDSHAKE_DISPATCHER, CONFIG_DISPATCHER, MAIN_DISPATCHER])
+                [HANDSHAKE_DISPATCHER, CONFIG_DISPATCHER, MAIN_DISPATCHER])
     def on_error_msg(self, ev):
         msg = ev.msg
         print 'receive a error message: %s' % (msg)

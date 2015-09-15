@@ -13,15 +13,15 @@ LOG.setLevel(logging.INFO)
 
 MAX_AGENTS = 1024
 
+
 class GlobalController(object):
 
     def __init__(self, *args):
         super(GlobalController, self).__init__()
         self.agents = {}
         self.server = StreamServer(('0.0.0.0', 10807), self._connection_factory)
-        self.cross_domain_links = [] # ex: [{src: {dpid: 4, port: 3}, dst: {dpid: 1, port: 1} }]
-        self.hosts = {} # host -> domain number
-
+        self.cross_domain_links = []  # ex: [{src: {dpid: 4, port: 3}, dst: {dpid: 1, port: 1} }]
+        self.hosts = {}  # host -> domain number
 
     def _connection_factory(self, socket, address):
         print 'connected socket:%s address:%s' % (socket, address)
@@ -39,9 +39,8 @@ class GlobalController(object):
             LOG.info('Remove agent %d', agent_id)
             del self.agents[agent_id]
 
-
     def start(self):
-        
+
         LOG.info('Waiting for connection.....')
         self.server.serve_forever()
 
@@ -59,25 +58,24 @@ class GlobalController(object):
         msg = json.dumps({
             'cmd': 'ask_dpid',
             'dpid': dst['dpid']
-            })
+        })
         self.broad_cast(msg)
 
         for _link in self.cross_domain_links:
 
             if _link['src']['dpid'] == src['dpid'] and \
-                _link['src']['port'] == src['port']:
+               _link['src']['port'] == src['port']:
                 _link['src']['agent_id'] = agent_id
                 break
 
             if _link['dst']['dpid'] == src['dpid'] and \
-                _link['dst']['port'] == src['port']:
+               _link['dst']['port'] == src['port']:
                 _link['dst']['agent_id'] = agent_id
                 break
 
         else:
             self.cross_domain_links.append(link)
-            self.cross_domain_links.append(link_rev)            
-
+            self.cross_domain_links.append(link_rev)
 
     def broad_cast(self, msg):
 
@@ -96,12 +94,11 @@ class GlobalController(object):
                 'dpid': -1,
                 'port': -1,
                 'host': dst_host
-                })
+            })
             LOG.debug('Unknown host %s', dst_host)
             agent.send(msg)
             return
 
-        
         # get source and destination
         # from a? to a? (cross doamin)
         dst_agent = self.hosts[dst_host]
@@ -134,10 +131,9 @@ class GlobalController(object):
             'port': output_port,
             'host': dst_host
         })
-        LOG.debug('send route result to agent %d, %d:%d %s', 
-            agent.agent_id, output_dpid, output_port, dst_host)
+        LOG.debug('send route result to agent %d, %d:%d %s',
+                  agent.agent_id, output_dpid, output_port, dst_host)
         agent.send(msg)
-
 
     def _get_agent_link(self, src, dst):
         # convert a? to ?
@@ -148,7 +144,7 @@ class GlobalController(object):
             src = glink['src']
             dst = glink['dst']
             if src['agent_id'] == src_agent_id and \
-                dst['agent_id'] == dst_agent_id:
+               dst['agent_id'] == dst_agent_id:
                 return glink
 
         return None
@@ -170,14 +166,12 @@ class GlobalController(object):
 
         return links
 
-
     def response_host(self, host, agent):
         '''
             actually, it use for get route
         '''
         self.hosts[host] = agent
         LOG.debug('Add host %s to self.hosts', host)
-
 
     def response_dpid(self, dpid, agent_id):
 
@@ -188,6 +182,7 @@ class GlobalController(object):
 
             if link['dst']['dpid'] == dpid:
                 link['dst']['agent_id'] = agent_id
+
 
 class GlobalAgent(object):
 
@@ -205,7 +200,7 @@ class GlobalAgent(object):
         msg = json.dumps({
             'cmd': 'set_agent_id',
             'agent_id': agent_id
-            })
+        })
         self.send(msg)
 
     def send(self, msg):
@@ -278,7 +273,6 @@ class GlobalAgent(object):
                 hub.sleep(0.1)
             except ValueError:
                 LOG.warning('Value error for %s, len: %d', buf, len(buf))
-            
 
     def serve(self):
         thr = hub.spawn(self.send_loop)

@@ -22,6 +22,7 @@ BETA = 1 - ALPHA
 # overload threshold(0~1)
 THRESHOLD = 0.7
 
+
 class GlobalController(object):
 
     def __init__(self, *args):
@@ -47,7 +48,6 @@ class GlobalController(object):
 
         return free_agent
 
-
     def _balance_agents(self, busy_agent, free_agent):
         '''
         move one switch from busy to free
@@ -59,11 +59,6 @@ class GlobalController(object):
                 # move it
                 # TODO: not finish.
                 pass
-                
-
-
-
-
 
     def _serve_loop(self):
         # calculate load for each agent and send role to them.
@@ -99,13 +94,14 @@ class GlobalController(object):
         thr = hub.spawn(self._serve_loop)
         print 'Waiting for connection.....'
         self.server.serve_forever()
-        
+
         hub.joinall([thr])
 
     def print_agents_status(self):
 
         for agent in self.agents:
             print "%s:%s" % (agent.address, agent.__str__(), )
+
 
 class GlobalAgent(object):
 

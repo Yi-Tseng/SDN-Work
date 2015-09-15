@@ -12,6 +12,7 @@ from liblb import LBEventRoleChange, LoadBalancer
 
 LOG = logging.getLogger('load_balance_app')
 
+
 class LoadBalanceApp(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
     _CONTEXTS = {'load_balancer': LoadBalancer}

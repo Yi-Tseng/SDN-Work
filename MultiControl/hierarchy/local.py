@@ -17,12 +17,12 @@ OFPPC_NO_FLOOD = 1 << 4
 mDNS = ['33:33:00:00:00:fb', '01:00:5E:00:00:FB']
 multicast_list = ["33:33:00:00:00:%02X" % x for x in range(0, 256)]
 
+
 class LocalControllerApp(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
     _CONTEXTS = {
         'local_lib': local_lib.LocalControllerLib
     }
-
 
     def __init__(self, *args, **kwargs):
         super(LocalControllerApp, self).__init__(*args, **kwargs)
@@ -107,7 +107,6 @@ class LocalControllerApp(app_manager.RyuApp):
             # calculate path
             self._packet_out_to(msg, host[0], host[1])
 
-
     def _get_out_port(self, src, dst):
         '''
         get output port from src switch to dst switch
@@ -118,9 +117,8 @@ class LocalControllerApp(app_manager.RyuApp):
         for link in links:
 
             if link.src.dpid == src and \
-                link.dst.dpid == dst:
+               link.dst.dpid == dst:
                 return link.src.port_no
-
 
     def _flood_packet(self, msg):
         datapath = msg.datapath
@@ -256,7 +254,6 @@ class LocalControllerApp(app_manager.RyuApp):
         if len(switch) != 0:
             self.local_lib.response_dpid(dpid)
 
-
     @set_ev_cls(local_lib.EventAskHost, MAIN_DISPATCHER)
     def ask_host_handler(self, ev):
         host_mac = ev.host
@@ -267,6 +264,3 @@ class LocalControllerApp(app_manager.RyuApp):
     @set_ev_cls(local_lib.EventHostDiscovery, MAIN_DISPATCHER)
     def host_discovery_handler(self, ev):
         LOG.debug('Discover host %s on %s, port %d', ev.host, ev.dpid, ev.port)
-
-
-

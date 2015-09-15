@@ -16,18 +16,22 @@ RoleStruct = struct.Struct('!IB')
 
 LOG = logging.getLogger('load_balance_lib')
 
+
 def get_cpu_ultilization():
     return psutil.cpu_percent(interval=1)
+
 
 def get_ram_ultilization():
     ram = psutil.virtual_memory()
     return ram.percent
+
 
 class LBEventRoleChange(event.EventBase):
     def __init__(self, dpid, role):
         super(LBEventRoleChange, self).__init__()
         self.dpid = dpid
         self.role = role
+
 
 class LoadBalancer(app_manager.RyuApp):
 
@@ -53,7 +57,7 @@ class LoadBalancer(app_manager.RyuApp):
         self.global_socket.sendall(header_data)
 
         dp_data = DPStruct.pack(dpid)
-        self.global_socket.sendall(dp_data)        
+        self.global_socket.sendall(dp_data)
 
     def _balance_loop(self):
         '''
