@@ -20,6 +20,7 @@ from mininet.util import dumpNodeConnections
 logging.basicConfig(level=logging.DEBUG)
 LOG = logging.getLogger('FatTreeTopo')
 
+
 class FatTreeTopo(Topo):
     core_switches = []
     pods = []
@@ -34,12 +35,12 @@ class FatTreeTopo(Topo):
         pod_pkt_lost: packet lost between switches in pod(Default: 0%)
         '''
         self.num_pods = k
-        self.num_cores = (k/2)**2
-        self.num_aggres = (k**2)/2
+        self.num_cores = (k / 2) ** 2
+        self.num_aggres = (k ** 2) / 2
         self.num_aggres_per_pod = self.num_aggres / self.num_pods
-        self.num_edges = (k**2)/2
+        self.num_edges = (k ** 2) / 2
         self.num_edges_per_pod = self.num_edges / self.num_pods
-        self.num_host_per_edge = k/2
+        self.num_host_per_edge = k / 2
         self.ac_bw = ac_bw
         self.pod_bw = pod_bw
         self.ac_pkt_lost = ac_pkt_lost
@@ -106,11 +107,11 @@ class FatTreeTopo(Topo):
 
         for pod in self.pods:
 
-            for ai in range(0, self.num_aggres_per_pod): # ai for aggregation index
-                cis = ai * num_cores_per_aggr # start index
-                cie = ai * num_cores_per_aggr + num_cores_per_aggr # end index
+            for ai in range(0, self.num_aggres_per_pod):  # ai for aggregation index
+                cis = ai * num_cores_per_aggr  # start index
+                cie = ai * num_cores_per_aggr + num_cores_per_aggr  # end index
 
-                for ci in range(cis, cie): # ci for core index
+                for ci in range(cis, cie):  # ci for core index
                     aggr_switch = pod['aggr'][ai]
                     core_switch = self.core_switches[ci]
                     LOG.info('add link from %s to %s', aggr_switch, core_switch)
@@ -138,10 +139,12 @@ class FatTreeTopo(Topo):
         self.link_core_to_pods()
         # self.set_protocols_to_all_switch(['OpenFlow13'])
 
+
 def set_protocol(switch, protocols):
     protocols_str = ','.join(protocols)
     command = 'ovs-vsctl set Bridge %s protocols=%s' % (switch, protocols_str)
     switch.cmd(command.split(' '))
+
 
 def set_stp(switch):
     cmd = "ovs-vsctl set Bridge %s stp_enable=true" % (switch.name, )
@@ -166,9 +169,9 @@ if __name__ == '__main__':
 
     # iperf test
     LOG.info('iperf test')
-    client_host = net.get('h000') # form pod 0, edge 0, host 0
-    server_host1 = net.get('h011') # from pod 0, edge 1, host 1
-    server_host2 = net.get('h301') # from pod 3, edge 0, host 1
+    client_host = net.get('h000')  # form pod 0, edge 0, host 0
+    server_host1 = net.get('h011')  # from pod 0, edge 1, host 1
+    server_host2 = net.get('h301')  # from pod 3, edge 0, host 1
 
     # start iperf server 1
     server_host1.popen('iperf -s -u -i 1 > iperf_server_1_report.txt', shell=True)
