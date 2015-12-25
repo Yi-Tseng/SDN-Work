@@ -26,7 +26,7 @@ def print_topo(switches=[], links=[], hosts=[]):
 
         for t in tlinks:
             cindex = tlinks.index(t)
-            if t == None:
+            if t is None:
                 print(' ', end='')
             else:
                 print('{}|{}'.format(colors[cindex % num_colors], end_color), end='')
@@ -63,18 +63,18 @@ def print_topo(switches=[], links=[], hosts=[]):
                     break
 
                 cindex = tlinks.index(t)
-                src_ports = [l['src'] if l != None else None for l in tlinks]
-                dst_ports = [l['dst'] if l != None else None for l in tlinks]
+                src_ports = [l['src'] if l is not None else None for l in tlinks]
+                dst_ports = [l['dst'] if l is not None else None for l in tlinks]
 
-                if t == None and (port in dst_ports):
+                if t is None and (port in dst_ports):
                     dindex = dst_ports.index(port)
                     print('{}-{}'.format(colors[dindex % num_colors], end_color), end='')
 
-                elif t == None and (port in src_ports):
+                elif t is None and (port in src_ports):
                     sindex = src_ports.index(port)
                     print('{}-{}'.format(colors[sindex % num_colors], end_color), end='')
 
-                elif t == None:
+                elif t is None:
                     print(' ', end='')
 
                 elif port['hw_addr'] == t['src']['hw_addr']:
@@ -84,7 +84,7 @@ def print_topo(switches=[], links=[], hosts=[]):
                     print('{}┘{}'.format(colors[cindex % num_colors], end_color), end='')
                     tlinks[cindex] = None
 
-                    while len(tlinks) > 0 and tlinks[-1] == None:
+                    while len(tlinks) > 0 and tlinks[-1] is None:
                         del tlinks[-1]
 
                 else:
