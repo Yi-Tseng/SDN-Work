@@ -27,8 +27,7 @@ def main():
 
     # add switch 1
     sw1 = net.addSwitch( 'sw1', target_name = "p4dockerswitch",
-            cls = P4DockerSwitch, config_fs = './startup_config.sh',
-            pcap_dump = True )
+            cls = P4DockerSwitch, pcap_dump = False )
 
     # add switch 2
     sw2 = net.addSwitch('sw2')
