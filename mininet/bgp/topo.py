@@ -112,7 +112,7 @@ if __name__ == '__main__':
     setLogLevel('debug')
     topo = SdnIpTopo()
 
-    net = Mininet(topo=topo, controller=RemoteController)
+    net = Mininet(topo=topo)
 
     net.start()
 
