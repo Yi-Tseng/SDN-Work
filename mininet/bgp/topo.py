@@ -6,11 +6,10 @@ from mininet.cli import CLI
 from mininet.log import setLogLevel, info, debug
 from mininet.node import Host, RemoteController
 
-QUAGGA_DIR = '/usr/lib/quagga'
 # Must exist and be owned by quagga user (quagga:quagga by default on Ubuntu)
 QUAGGA_RUN_DIR = '/var/run/quagga'
-QCONFIG_DIR = '/root/quagga/configs'
-ZCONFIG_DIR = '/root/zebra/configs'
+QCONFIG_DIR = 'configs'
+ZCONFIG_DIR = 'configs'
 
 
 class SdnIpHost(Host):
@@ -62,137 +61,50 @@ class Router(Host):
 
 
 class SdnIpTopo(Topo):
-    """
-    NCTU SDN-IP tutorial topology
-                                    +------+
-                                    |      |
-                                    |Quagga|
-                                    |  02  |
-                                    +-eth0-+
-                                       |
-          +------+                  +------+
-          |      |                  |      |
-      +---+  S1  +------------------+  S4  |
-      |   |      |                  |      |
-      |   +--+---+                  +---+--+
-      |      |                          |
-      +      |                          |
-    Krenet   |                          |
-             |                          |
-             |                          |     Amlight
-          +--+---+                  +---+--+     +
-          |      |                  |      |     |
-          |  S2  +------------------+  S3  +-----+
-          |      |                  |      |
-          +--+---+                  +------+
-             |
-          +-eth0-+
-          |      |
-          |Quagga|
-          |  01  |
-          +------+
-    """
 
     def build(self):
         zebraConf = '{}/zebra.conf'.format(ZCONFIG_DIR)
 
-        s1 = self.addSwitch('s1', dpid='00000000000000a1')
-        s2 = self.addSwitch('s2', dpid='00000000000000a2')
-        s3 = self.addSwitch('s3', dpid='00000000000000a3')
-        s4 = self.addSwitch('s4', dpid='00000000000000a4')
-        self.addLink(s1, s2)
-        self.addLink(s1, s4)
-        self.addLink(s3, s2)
-        self.addLink(s3, s4)
+        s1 = self.addSwitch('s1', dpid='0000000000000001', failMode="standalone")
 
-        # Internal quagga 1
+        # Quagga 1
         bgpEth0 = {
             'mac': '00:00:00:00:00:01',
             'ipAddrs': [
-                '10.0.1.0/24',
-                '10.0.2.101/24',
-                '10.0.3.101/24',
-                '10.0.4.101/24'
+                '10.0.1.1/24',
             ]
         }
 
         bgpIntfs = {
-            'bgp-eth0': bgpEth0
+            'bgp-q1-eth0': bgpEth0
         }
 
         bgpq1 = self.addHost("bgp-q1", cls=Router,
-                             quaggaConfFile='%s/quagga-sdn.conf' % CONFIG_DIR,
+                             quaggaConfFile='{}/quagga1.conf'.format(QCONFIG_DIR),
                              zebraConfFile=zebraConf,
                              intfDict=bgpIntfs)
 
-        self.addLink(bgp, s3)
+        self.addLink(bgpq1, s1)
 
-        for i in range(1, 4 + 1):
-            name = 'r%s' % i
-
-            eth0 = {
-                'mac': '00:00:00:00:0%s:01' % i,
-                'ipAddrs': ['10.0.%s.1/24' % i]
-            }
-            eth1 = {
-                'ipAddrs': ['192.168.%s.254/24' % i]
-            }
-
-            intfs = {
-                '{}-eth0'.format(name): eth0,
-                '{}-eth1'.format(name): eth1
-            }
-
-            quaggaConf = '%s/quagga%s.conf' % (CONFIG_DIR, i)
-
-            router = self.addHost(name, cls=Router, quaggaConfFile=quaggaConf,
-                                  zebraConfFile=zebraConf, intfDict=intfs)
-
-            host = self.addHost('h%s' % i, cls=SdnIpHost,
-                                ip='192.168.%s.1/24' % i,
-                                route='192.168.%s.254' % i)
-
-            self.addLink(router, attachmentSwitches[i - 1])
-            self.addLink(router, host)
-
-        # Set up the internal BGP speaker
+        # Quagga 2
         bgpEth0 = {
-            'mac': '00:00:00:00:00:01',
+            'mac': '00:00:00:00:00:02',
             'ipAddrs': [
-                '10.0.1.101/24',
-                '10.0.2.101/24',
-                '10.0.3.101/24',
-                '10.0.4.101/24',
+                '10.0.2.1/24',
             ]
         }
 
-        bgpEth1 = {
-            'ipAddrs': ['10.10.10.1/24']
-        }
         bgpIntfs = {
-            'bgp-eth0': bgpEth0,
-            'bgp-eth1': bgpEth1
+            'bgp-q2-eth0': bgpEth0
         }
 
-        bgp = self.addHost("bgp", cls=Router,
-                           quaggaConfFile='%s/quagga-sdn.conf' % CONFIG_DIR,
-                           zebraConfFile=zebraConf,
-                           intfDict=bgpIntfs)
+        bgpq2 = self.addHost("bgp-q2", cls=Router,
+                             quaggaConfFile='{}/quagga2.conf'.format(QCONFIG_DIR),
+                             zebraConfFile=zebraConf,
+                             intfDict=bgpIntfs)
 
-        self.addLink(bgp, s3)
+        self.addLink(bgpq2, s1)
 
-        # Connect BGP speaker to the root namespace so it can peer with ONOS
-        root = self.addHost('root', inNamespace=False, ip='10.10.10.2/24')
-        self.addLink(root, bgp)
-
-        #  Wire up the switches in the topology
-        self.addLink(s1, s2)
-        self.addLink(s1, s3)
-        self.addLink(s2, s4)
-        self.addLink(s3, s4)
-        self.addLink(s3, s5)
-        self.addLink(s4, s6)
-        self.addLink(s5, s6)
 
 topos = {'sdnip': SdnIpTopo}
 
@@ -209,4 +121,3 @@ if __name__ == '__main__':
     net.stop()
 
     info("done\n")
-
