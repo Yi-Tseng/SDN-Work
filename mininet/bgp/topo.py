@@ -4,7 +4,7 @@ from mininet.topo import Topo
 from mininet.net import Mininet
 from mininet.cli import CLI
 from mininet.log import setLogLevel, info, debug
-from mininet.node import Host, RemoteController
+from mininet.node import Host, RemoteController, OVSSwitch
 
 # Must exist and be owned by quagga user (quagga:quagga by default on Ubuntu)
 QUAGGA_RUN_DIR = '/var/run/quagga'
@@ -65,7 +65,7 @@ class SdnIpTopo(Topo):
     def build(self):
         zebraConf = '{}/zebra.conf'.format(ZCONFIG_DIR)
 
-        s1 = self.addSwitch('s1', dpid='0000000000000001', failMode="standalone")
+        s1 = self.addSwitch('s1', dpid='0000000000000001', cls=OVSSwitch, failMode="standalone")
 
         # Quagga 1
         bgpEth0 = {
@@ -76,10 +76,10 @@ class SdnIpTopo(Topo):
         }
 
         bgpIntfs = {
-            'bgp-q1-eth0': bgpEth0
+            'bgpq1-eth0': bgpEth0
         }
 
-        bgpq1 = self.addHost("bgp-q1", cls=Router,
+        bgpq1 = self.addHost("bgpq1", cls=Router,
                              quaggaConfFile='{}/quagga1.conf'.format(QCONFIG_DIR),
                              zebraConfFile=zebraConf,
                              intfDict=bgpIntfs)
@@ -95,10 +95,10 @@ class SdnIpTopo(Topo):
         }
 
         bgpIntfs = {
-            'bgp-q2-eth0': bgpEth0
+            'bgpq2-eth0': bgpEth0
         }
 
-        bgpq2 = self.addHost("bgp-q2", cls=Router,
+        bgpq2 = self.addHost("bgpq2", cls=Router,
                              quaggaConfFile='{}/quagga2.conf'.format(QCONFIG_DIR),
                              zebraConfFile=zebraConf,
                              intfDict=bgpIntfs)
@@ -112,7 +112,7 @@ if __name__ == '__main__':
     setLogLevel('debug')
     topo = SdnIpTopo()
 
-    net = Mininet(topo=topo)
+    net = Mininet(topo=topo, controller=RemoteController)
 
     net.start()
 
