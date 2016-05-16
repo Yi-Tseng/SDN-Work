@@ -55,6 +55,8 @@ if __name__ == '__main__':
     net.get('s2').start([c0])
     os.popen('ip addr add 192.168.10.1/16 dev s1')
     os.popen('ip addr add 192.168.20.1/16 dev s2')
+    os.popen('ovs-vsctl set interface s1-eth10 type=vxlan option:remote_ip=192.168.20.1 option:key=flow')
+    os.popen('ovs-vsctl set interface s2-eth10 type=vxlan option:remote_ip=192.168.10.1 option:key=flow')
 
     CLI(net)
     net.stop()
