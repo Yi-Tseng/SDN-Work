@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os
+from mininet.log import setLogLevel, info, debug
 from mininet.topo import Topo
 from mininet.node import Host, RemoteController, OVSSwitch
 
