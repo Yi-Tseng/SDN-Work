@@ -37,6 +37,8 @@ class VXLANTopo(Topo):
         self.addLink(red2, s2)
         self.addLink(blue2, s2)
 
+        self.addLink(s1, tor, port1=10, port2=1)
+        self.addLink(s2, tor, port1=10, port2=2)
 
 if __name__ == '__main__':
     setLogLevel('debug')
