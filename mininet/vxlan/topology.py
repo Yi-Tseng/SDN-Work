@@ -51,10 +51,15 @@ if __name__ == '__main__':
                            controller=RemoteController,
                            ip='127.0.0.1', port=6633)
 
+    net.get('red1').setMAC('00:00:00:00:00:01')
+    net.get('red2').setMAC('00:00:00:00:00:02')
+    net.get('blue1').setMAC('00:00:00:00:00:01')
+    net.get('blue2').setMAC('00:00:00:00:00:02')
+
     net.get('s1').start([c0])
     net.get('s2').start([c0])
-    os.popen('ip addr add 192.168.10.1/16 dev s1')
-    os.popen('ip addr add 192.168.20.1/16 dev s2')
+    os.popen('ip addr add 192.168.10.1/16 dev s1-eth10')
+    os.popen('ip addr add 192.168.20.1/16 dev s2-eth10')
     os.popen('ovs-vsctl set interface s1-eth10 type=vxlan option:remote_ip=192.168.20.1 option:key=flow')
     os.popen('ovs-vsctl set interface s2-eth10 type=vxlan option:remote_ip=192.168.10.1 option:key=flow')
 
