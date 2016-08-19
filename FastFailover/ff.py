@@ -9,32 +9,37 @@ from ryu.lib.packet import ethernet
 from ryu.lib.packet import ether_types
 from ryu.topology import api as ryu_api
 
+DEFAULT_FLOW_PRIORITY = 32767
+DEFAULT_BUCKET_WEIGHT = 10
+
+
 class FastFailover(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
-    DEFAULT_FLOW_PRIORITY = 32767
-    DEFAULT_BUCKET_WEIGHT = 10
 
     def __init__(self, *args, **kwargs):
         super(FastFailover, self).__init__()
         self.hosts = {}
-        self.num_groups = 0
+        self.num_groups = 1
         self.mac_to_gid = {}
         self.gid_to_mac = {}
+        self.default_group_installed = []
 
-    def add_flow(self, datapath, priority, match, actions, buffer_id=None):
+    def add_flow(self, datapath, priority, match, actions):
+        self.logger.info('add flow with dpid:%d, match: %s, actions: %s', datapath.id, match, actions)
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
 
         inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS,
                                              actions)]
-        if buffer_id:
-            mod = parser.OFPFlowMod(datapath=datapath, buffer_id=buffer_id,
-                                    priority=priority, match=match,
-                                    instructions=inst)
-        else:
-            mod = parser.OFPFlowMod(datapath=datapath, priority=priority,
-                                    match=match, instructions=inst)
+        mod = parser.OFPFlowMod(datapath=datapath, priority=priority,
+                                match=match, instructions=inst)
         datapath.send_msg(mod)
+
+    @set_ev_cls(ofp_event.EventOFPErrorMsg, MAIN_DISPATCHER)
+    def error_msg_handler(self, ev):
+        from ryu import utils
+        msg = ev.msg
+        self.logger.info('OFPErrorMsg received: type=0x%02x code=0x%02x message=%s', msg.type, msg.code, utils.hex_array(msg.data))
 
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
     def switch_features_handler(self, ev):
@@ -46,6 +51,16 @@ class FastFailover(app_manager.RyuApp):
         actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
                                           ofproto.OFPCML_NO_BUFFER)]
         self.add_flow(datapath, 0, match, actions)
+
+        # install default groups
+        if datapath.id in self.default_group_installed:
+            return
+
+        for gid in range(1, 255):
+            gmod = parser.OFPGroupMod(datapath, ofproto.OFPGC_ADD, ofproto.OFPGT_FF, gid, [])
+            datapath.send_msg(gmod)
+
+        self.default_group_installed.append(datapath.id)
 
     def get_dp(self, dpid):
         switches = ryu_api.get_all_switch(self)
@@ -65,6 +80,8 @@ class FastFailover(app_manager.RyuApp):
             dst = link.dst
             g.add_edge(src.dpid, dst.dpid, src_port=src.port_no, dst_port=dst.port_no)
 
+        return g
+
     def is_edge_port(self, dpid, port_no):
         links = ryu_api.get_all_link(self)
 
@@ -74,13 +91,18 @@ class FastFailover(app_manager.RyuApp):
 
         return True
 
-    def install_group_flow_entries(self, gid, match):
+    def install_group_to_all_dp(self, gid):
         switches = ryu_api.get_all_switch(self)
+
+        if not gid:
+            return
 
         for switch in switches:
             dp = switch.dp
-            group_action = parser.OFPActionGroup(group_id=gid)
-            self.add_flow(dp, DEFAULT_FLOW_PRIORITY, match, group_action)
+            ofproto = dp.ofproto
+            of_parser = dp.ofproto_parser
+            gmod = of_parser.OFPGroupMod(dp, ofproto.OFPGC_ADD, ofproto.OFPGT_FF, gid, [])
+            dp.send_msg(gmod)
 
     def modify_group_bucket_list(self, dp, gid, new_bucket_list):
         ofproto = dp.ofproto
@@ -94,7 +116,7 @@ class FastFailover(app_manager.RyuApp):
         L2 shortest path routing
         '''
         msg = ev.msg
-        dp = msg.dp
+        dp = msg.datapath
         dpid = dp.id
         ofproto = dp.ofproto
         of_parser = dp.ofproto_parser
@@ -110,17 +132,29 @@ class FastFailover(app_manager.RyuApp):
         src = eth.src
         dst = eth.dst
 
+        _dbg_hosts = ['00:00:00:00:00:01', '00:00:00:00:00:02']
+        if src not in _dbg_hosts or dst not in _dbg_hosts:
+            return
+
+        self.logger.info("%s -> %s", src, dst)
         if self.is_edge_port(dpid, in_port):
             # add host record
             self.hosts[src] = (dpid, in_port)
 
-            if src not in self.mac_to_gid
+            if src not in self.mac_to_gid:
                 self.mac_to_gid[src] = self.num_groups
-                self.gid_to_mac[self.num_groups = src]
+                self.gid_to_mac[self.num_groups] = src
+                gid = self.num_groups
+                self.logger.info("mac: %s, gid: %d", src, gid)
                 self.num_groups += 1
 
-            _match = of_parser.OFPMatch(in_port=in_port, eth_dst=src)
-            self.install_group_flow_entries(self.mac_to_gid[src], _match)
+
+        if src in self.mac_to_gid:
+            # add a group with empty bucket
+            gid = self.mac_to_gid[src]
+            match = of_parser.OFPMatch(eth_dst=src)
+            actions = [of_parser.OFPActionGroup(group_id=gid)]
+            self.add_flow(dp, DEFAULT_FLOW_PRIORITY, match, actions)
 
         if dst not in self.hosts:
             # can't find host, drop it
@@ -163,14 +197,16 @@ class FastFailover(app_manager.RyuApp):
 
         for path in all_paths:
             for _i in range(0, len(path)):
-                to_install.setdfault(path[_i], [])
+                to_install.setdefault(path[_i], set())
 
                 if path[_i] == dst_dpid:
                     continue
 
-                if path[_i + 1] not in to_install[_i]:
-                    to_install[_i].append(path[_i + 1])
+                to_install[path[_i]].add(path[_i + 1])
 
+        self.logger.info(to_install)
+        dst_match = of_parser.OFPMatch(eth_dst=dst)
+        dst_actions = [of_parser.OFPActionGroup(group_id=dst_gid)]
         # gnerate all buckets and actions and install to switch
         for _dpid, _next_dpid_list in to_install.items():
             _dp = self.get_dp(_dpid)
@@ -181,8 +217,9 @@ class FastFailover(app_manager.RyuApp):
             if _dpid == dst_dpid:
                 actions = [of_parser.OFPActionOutput(port=dst_port)]
                 buckets = [of_parser.OFPBucket(DEFAULT_BUCKET_WEIGHT, dst_port, dst_gid, actions)]
-                gmod = of_parser.OFGroupMod(dp, ofproto.OFPGC_ADD, ofproto.OFPGT_FF, dst_gid, buckets)
+                gmod = of_parser.OFPGroupMod(dp, ofproto.OFPGC_MODIFY, ofproto.OFPGT_FF, dst_gid, buckets)
                 _dp.send_msg(gmod)
+                self.add_flow(_dp, DEFAULT_FLOW_PRIORITY, dst_match, dst_actions)
 
             else:
                 buckets = []
@@ -192,5 +229,7 @@ class FastFailover(app_manager.RyuApp):
                     actions = [of_parser.OFPActionOutput(port=_out_port)]
                     buckets.append(of_parser.OFPBucket(DEFAULT_BUCKET_WEIGHT, _out_port, dst_gid, actions))
 
-                gmod = of_parser.OFGroupMod(dp, ofproto.OFPGC_ADD, ofproto.OFPGT_FF, dst_gid, buckets)
+                gmod = of_parser.OFPGroupMod(dp, ofproto.OFPGC_MODIFY, ofproto.OFPGT_FF, dst_gid, buckets)
                 _dp.send_msg(gmod)
+                self.add_flow(_dp, DEFAULT_FLOW_PRIORITY, dst_match, dst_actions)
+
