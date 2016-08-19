@@ -21,7 +21,7 @@ def ofp_version(switch, protocols):
     switch.cmd(command.split(' '))
 
 if '__main__' == __name__:
-    net = Mininet(controller=RemoteController)
+    net = Mininet(controller=RemoteController, autoStaticArp=True, autoSetMacs=True)
     c0 = net.addController('c0')
 
     h1 = net.addHost('h1')
