@@ -11,13 +11,25 @@ var svg = d3.select('#topology').append("svg")
 var d3_nodes = [],
     d3_links = [];
 
+var forceCenter = [
+    {'x': width * 0.5, 'y': height * 0},
+    {'x': width * 0.5, 'y': height * 1},
+    {'x': width * 0.5, 'y': height * 2}
+];
+
+var layerCenter = [
+    {'x': width * 0.5, 'y': height * 0.4},
+    {'x': width * 0.5, 'y': height * 0.6},
+    {'x': width * 0.5, 'y': height * 0.8}
+];
+
 var force = d3.layout.force()
               .gravity(0.4)
-              .charge(-5000)
+              .charge(-3000)
               .linkDistance(function (d) {
                   // XXX: I can't change link distance.....
                   if(d === 'c') {
-                      return 500;
+                      return 100;
                   } else {
                       return 100;
                   }
@@ -25,7 +37,7 @@ var force = d3.layout.force()
               .linkStrength(function (d) {
                   // XXX: no use?
                   if(d === 'c') {
-                      return 3;
+                      return 1.5;
                   } else {
                       return 1;
                   }
@@ -34,10 +46,7 @@ var force = d3.layout.force()
               .theta(0.3)
               .size([width, height]);
 
-var forceCenter = [
-    {'x': width * 0.5, 'y': height * 0},
-    {'x': width * 0.5, 'y': height * 1}
-];
+
 
 function linkExist(src, dst, links) {
     var index;
@@ -97,7 +106,7 @@ function forceTick(e) {
                 }
             }
         });
-    
+
     // for multi force
     d3_nodes.forEach(function (o, i) {
         o.x += (forceCenter[o.domain].x - o.x) * k;
@@ -121,7 +130,7 @@ function forceTick(e) {
                     return d.y - 20;
                 }
             }
-            
+
         });
 
 }
@@ -134,15 +143,16 @@ function loadData(err, data) {
         return;
     }
 
-    var topos = [data.domain0, data.domain1],
+    var topos = [data.domain0, data.domain1, data.domain2],
         index,
         domain;
-    
-    for (domain = 0; domain < 2; domain++) {
+
+    for (domain = 0; domain < topos.length; domain++) {
+
         var switches = topos[domain].switches,
             links = topos[domain].links,
             hosts = topos[domain].hosts;
-        
+
         for (index = 0; index < switches.length; index++) {
             switches[index].type = 's';
             switches[index].domain = domain;
@@ -172,16 +182,26 @@ function loadData(err, data) {
             }
         }
     }
-    
+
     var crossDoaminLinks = data.crossDomainLinks;
     for (index = 0; index < crossDoaminLinks.length; index++) {
         var link = crossDoaminLinks[index],
             src_index = searchSwitchIndex(link.src.dpid, link.src.domain, d3_nodes),
             dst_index = searchSwitchIndex(link.dst.dpid, link.dst.domain, d3_nodes);
-        
+
         d3_links.push({source: src_index, target: dst_index, type: 'c'});
     }
-    
+
+    for (domain = 0; domain < topos.length; domain++) {
+
+        var layer = svg.append('image')
+        .attr('xlink:href', 'floor.png')
+        .attr('x', layerCenter[domain]['x'] - 750)
+        .attr('y', layerCenter[domain]['y'] - 110)
+        .attr('width', 1500)
+        .attr('height', 220)
+    }
+
     force.nodes(d3_nodes)
          .links(d3_links)
          .start();
@@ -211,16 +231,16 @@ function loadData(err, data) {
                 return '#0F0';
             }
         });
-    
+
     allSVGElem.nodes = svg.selectAll('.node')
         .data(d3_nodes)
         .enter()
         .append('image')
         .attr('xlink:href', function (d) {
             if (d.type === 's') {
-                return 'switch.svg';
+                return 'switch.png';
             } else {
-                return 'host.svg';
+                return 'host.png';
             }
         })
         .attr('x', -20)
@@ -230,6 +250,7 @@ function loadData(err, data) {
         .attr('px', function (d) { return d.x; })
         .attr('py', function (d) { return d.y; })
         .attr('class', 'node')
+        .on("dblclick", function(d) { d3.select(this).classed("fixed", d.fixed = true); })
         .call(force.drag);
 
 

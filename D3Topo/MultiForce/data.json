@@ -1,66 +1,109 @@
 {
-    "domain0":{
-        "switches": [
-            {"dpid": 1},
-            {"dpid": 2},
-            {"dpid": 3}
-        ],
-        "hosts": [
-            {"port": 1, "mac": "4e:d2:db:e2:10:13", "dpid": 1},
-            {"port": 2, "mac": "6a:34:c8:67:07:d8", "dpid": 1},
-            {"port": 1, "mac": "aa:58:0a:d7:47:8b", "dpid": 2},
-            {"port": 2, "mac": "b6:42:16:da:0f:b3", "dpid": 2},
-            {"port": 2, "mac": "c2:7f:3e:82:76:ba", "dpid": 3},
-            {"port": 3, "mac": "aa:58:0a:d7:47:8b", "dpid": 3},
-            {"port": 1, "mac": "c2:73:26:77:9d:e3", "dpid": 3}
-        ],
-        "links": [
-            {"src": {"port": 1, "dpid": 1}, "dst": {"port": 3, "dpid": 2}},
-            {"src": {"port": 3, "dpid": 2}, "dst": {"port": 1, "dpid": 1}},
-            {"src": {"port": 3, "dpid": 3}, "dst": {"port": 3, "dpid": 2}},
-            {"src": {"port": 2, "dpid": 1}, "dst": {"port": 3, "dpid": 3}},
-            {"src": {"port": 3, "dpid": 3}, "dst": {"port": 2, "dpid": 1}},
-            {"src": {"port": 3, "dpid": 2}, "dst": {"port": 3, "dpid": 3}}
-        ]
-    },
-    "domain1":{
-        "switches": [
-            {"dpid": 1},
-            {"dpid": 2},
-            {"dpid": 3},
-            {"dpid": 4},
-            {"dpid": 5},
-            {"dpid": 6},
-            {"dpid": 7}
-        ],
-        "hosts": [
-            {"port": 1, "mac": "00:00:00:00:00:01", "dpid": 3},
-            {"port": 2, "mac": "00:00:00:00:00:02", "dpid": 3},
-            {"port": 1, "mac": "00:00:00:00:00:03", "dpid": 4},
-            {"port": 2, "mac": "00:00:00:00:00:04", "dpid": 4},
-            {"port": 2, "mac": "00:00:00:00:00:06", "dpid": 6},
-            {"port": 1, "mac": "00:00:00:00:00:05", "dpid": 6},
-            {"port": 2, "mac": "00:00:00:00:00:08", "dpid": 7},
-            {"port": 1, "mac": "00:00:00:00:00:07", "dpid": 7}
-        ],
-        "links": [
-            {"src": {"port": 3, "dpid": 3}, "dst": {"port": 1, "dpid": 2}},
-            {"src": {"port": 1, "dpid": 5}, "dst": {"port": 3, "dpid": 6}},
-            {"src": {"port": 3, "dpid": 4}, "dst": {"port": 2, "dpid": 2}},
-            {"src": {"port": 3, "dpid": 7}, "dst": {"port": 2, "dpid": 5}},
-            {"src": {"port": 1, "dpid": 2}, "dst": {"port": 3, "dpid": 3}},
-            {"src": {"port": 1, "dpid": 1}, "dst": {"port": 3, "dpid": 2}},
-            {"src": {"port": 3, "dpid": 2}, "dst": {"port": 1, "dpid": 1}},
-            {"src": {"port": 2, "dpid": 5}, "dst": {"port": 3, "dpid": 7}},
-            {"src": {"port": 2, "dpid": 1}, "dst": {"port": 3, "dpid": 5}},
-            {"src": {"port": 3, "dpid": 6}, "dst": {"port": 1, "dpid": 5}},
-            {"src": {"port": 3, "dpid": 5}, "dst": {"port": 2, "dpid": 1}},
-            {"src": {"port": 2, "dpid": 2}, "dst": {"port": 3, "dpid": 4}}
-        ]
-    },
-    "crossDomainLinks": [
-        {"src": {"domain": 0, "dpid": 1}, "dst": {"domain": 1, "dpid": 4}},
-        {"src": {"domain": 0, "dpid": 2}, "dst": {"domain": 1, "dpid": 7}},
-        {"src": {"domain": 0, "dpid": 3}, "dst": {"domain": 1, "dpid": 2}}
-    ]
+	"domain0": {
+		"switches": [{
+			"dpid": 1
+		}],
+		"hosts": [{
+			"port": 1,
+			"mac": "4e:d2:db:e2:10:13",
+			"dpid": 1
+		}, {
+			"port": 2,
+			"mac": "6a:34:c8:67:07:d8",
+			"dpid": 1
+		}],
+		"links": []
+	},
+	"domain1": {
+		"switches": [{
+			"dpid": 1
+		}, {
+			"dpid": 2
+		}],
+		"hosts": [{
+			"port": 1,
+			"mac": "00:00:00:00:00:01",
+			"dpid": 1
+		}, {
+			"port": 1,
+			"mac": "00:00:00:00:00:02",
+			"dpid": 2
+		}],
+		"links": [{
+			"src": {
+				"port": 2,
+				"dpid": 1
+			},
+			"dst": {
+				"port": 2,
+				"dpid": 2
+			}
+		}]
+	},
+	"domain2": {
+		"switches": [{
+			"dpid": 1
+		}, {
+			"dpid": 2
+		}, {
+			"dpid": 3
+		}, {
+			"dpid": 4
+		}, {
+			"dpid": 5
+		}],
+		"hosts": [{
+			"port": 1,
+			"mac": "00:00:00:00:00:01",
+			"dpid": 2
+		}, {
+			"port": 1,
+			"mac": "00:00:00:00:00:02",
+			"dpid": 4
+		}],
+		"links": [{
+			"src": {
+				"port": 2,
+				"dpid": 1
+			},
+			"dst": {
+				"port": 1,
+				"dpid": 3
+			}
+		}, {
+			"src": {
+				"port": 2,
+				"dpid": 2
+			},
+			"dst": {
+				"port": 2,
+				"dpid": 3
+			}
+		}, {
+			"src": {
+				"port": 2,
+				"dpid": 4
+			},
+			"dst": {
+				"port": 3,
+				"dpid": 3
+			}
+		}, {
+			"src": {
+				"port": 2,
+				"dpid": 5
+			},
+			"dst": {
+				"port": 4,
+				"dpid": 3
+			}
+		}]
+	},
+	"crossDomainLinks": [
+    {"src": {"domain": 0, "dpid": 1}, "dst": {"domain": 1, "dpid": 1}},
+    {"src": {"domain": 0, "dpid": 1}, "dst": {"domain": 1, "dpid": 2}},
+    {"src": {"domain": 1, "dpid": 1}, "dst": {"domain": 2, "dpid": 2}},
+    {"src": {"domain": 1, "dpid": 1}, "dst": {"domain": 2, "dpid": 3}},
+    {"src": {"domain": 1, "dpid": 2}, "dst": {"domain": 2, "dpid": 4}}
+  ]
 }
