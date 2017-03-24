@@ -51,9 +51,9 @@ if '__main__' == __name__:
     c2.start()
 
     for domain in range(0, 3):
-        switches[domain * 3 + 0].start(controllers[domain])
-        switches[domain * 3 + 1].start(controllers[domain])
-        switches[domain * 3 + 2].start(controllers[domain])
+        switches[domain * 3 + 0].start([controllers[domain]])
+        switches[domain * 3 + 1].start([controllers[domain]])
+        switches[domain * 3 + 2].start([controllers[domain]])
 
     for sw in switches:
         ofp_version(sw, ['OpenFlow13'])
