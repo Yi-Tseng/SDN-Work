@@ -58,13 +58,13 @@ if '__main__' == __name__:
     r3.cmd('ip a add 192.168.2.2/24 dev r3-eth0')
 
     # quagga
-    r1.cmd('/usr/lib/quagga/zebra -d -f zebra.conf -z /var/run/quagga/zebra-r1.api -i /var/run/quagga/zebra-r1.pid')
+    r1.cmd('/usr/lib/quagga/zebra -d -f zebra-r1.conf -z /var/run/quagga/zebra-r1.api -i /var/run/quagga/zebra-r1.pid')
     r1.cmd('/usr/lib/quagga/bgpd -d -f r1.conf -z /var/run/quagga/zebra-r1.api -i /var/run/quagga/bgpd-r1.pid')
 
-    r2.cmd('/usr/lib/quagga/zebra -d -f zebra.conf -z /var/run/quagga/zebra-r2.api -i /var/run/quagga/zebra-r2.pid')
+    r2.cmd('/usr/lib/quagga/zebra -d -f zebra-r2.conf -z /var/run/quagga/zebra-r2.api -i /var/run/quagga/zebra-r2.pid')
     r2.cmd('/usr/lib/quagga/bgpd -d -f r2.conf -z /var/run/quagga/zebra-r2.api -i /var/run/quagga/bgpd-r2.pid')
 
-    r3.cmd('/usr/lib/quagga/zebra -d -f zebra.conf -z /var/run/quagga/zebra-r3.api -i /var/run/quagga/zebra-r3.pid')
+    r3.cmd('/usr/lib/quagga/zebra -d -f zebra-r3.conf -z /var/run/quagga/zebra-r3.api -i /var/run/quagga/zebra-r3.pid')
     r3.cmd('/usr/lib/quagga/bgpd -d -f r3.conf -z /var/run/quagga/zebra-r3.api -i /var/run/quagga/bgpd-r3.pid')
 
     CLI(net)
